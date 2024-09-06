@@ -37,16 +37,16 @@
 </script>
 
 <div class="flex flex-col">
-	<div class="fixed flex h-32 w-full flex-col items-start py-6 pl-[40%]">
+	<div class="xkcd-script fixed flex h-32 w-full flex-col items-start py-6 pl-[40%]">
 		<div class="p-4">
 			<h1 class="mb-2 text-4xl font-bold">Stuff I made</h1>
 			<p class="text-sm italic">(or contributed to)</p>
 		</div>
 	</div>
 
-	<div class="static mt-32 flex h-full w-full">
+	<div class="xkcd-script static mt-32 flex h-full w-full">
 		<!-- Left Section for Project List -->
-		<div class="w-2/5 p-4">
+		<div class="mb-64 w-2/5 p-4">
 			<ProjectList />
 		</div>
 
