@@ -4,6 +4,7 @@
 
 	import ProjectList from '$lib/components/ProjectList.svelte';
 	import GraphPlot from '$lib/components/GraphPlot.svelte';
+	import { projects } from '$lib/loc_analysis';
 
 	let selectedPlot = 'Code Density vs. Commit Frequency';
 
@@ -26,6 +27,7 @@
 	];
 
 	$: tabList = undefined as HTMLDivElement | undefined;
+	let sortListBy: 'loc' | 'stars' | 'title' | 'recency' = 'stars';
 
 	const handleTabSelect = (tab: string | undefined) => {
 		if (tab) selectedPlot = tab;
@@ -37,7 +39,9 @@
 </script>
 
 <div class="flex flex-col">
-	<div class="xkcd-script fixed flex h-32 w-full flex-col items-start py-6 pl-[40%]">
+	<div
+		class="xkcd-script pointer-events-none fixed flex h-32 w-full flex-col items-start py-6 pl-[40%]"
+	>
 		<div class="p-4">
 			<h1 class="mb-2 text-4xl font-bold">Stuff I made</h1>
 			<p class="text-sm italic">(or contributed to)</p>
@@ -47,7 +51,21 @@
 	<div class="xkcd-script static mt-32 flex h-full w-full">
 		<!-- Left Section for Project List -->
 		<div class="mb-64 w-2/5 p-4">
-			<ProjectList />
+			<!-- sort dropdown -->
+			<div class="-mt-8 mb-4 flex items-center justify-end gap-3">
+				<label for="sort" class="text-sm text-muted-foreground">Sort by:</label>
+				<select
+					id="sort"
+					class="bg-transparent text-sm text-muted-foreground"
+					bind:value={sortListBy}
+				>
+					<option value="loc">Lines of Code</option>
+					<option value="stars">Stars</option>
+					<option value="title">Title</option>
+					<option value="recency">Recency</option>
+				</select>
+			</div>
+			<ProjectList {projects} sortBy={sortListBy} />
 		</div>
 
 		<!-- Left section fade-out top -->
