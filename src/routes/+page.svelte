@@ -54,7 +54,7 @@
 		</div>
 	</div>
 
-	<div class="xkcd-script static mt-32 flex h-full w-full">
+	<div class="xkcd-script static mt-32 flex h-full w-full overflow-x-hidden">
 		<!-- Left Section for Project List -->
 		<div class="mb-64 w-2/5 p-4">
 			<!-- sort dropdown -->
@@ -85,7 +85,7 @@
 		/>
 
 		<!-- Right Section for Graph Plot -->
-		<div class="fixed right-0 flex w-3/5 flex-col p-4">
+		<div class="fixed right-0 flex h-[calc(100vh-10rem)] w-3/5 flex-col p-4">
 			<!-- Tab Bar using shadcn/ui -->
 			<Tabs value={selectedPlotIndex.toString()} onValueChange={handleTabSelect} class="w-full">
 				<button
@@ -121,7 +121,7 @@
 					<ChevronRightIcon class="h-6 w-6" />
 				</button>
 			</Tabs>
-			<div class="mt-4">
+			<div class="mt-4 h-full">
 				<GraphPlot {selectedPlot} />
 			</div>
 		</div>
