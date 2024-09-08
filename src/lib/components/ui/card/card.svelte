@@ -35,10 +35,4 @@
 		border-image-width: 25px;
 		border-image-outset: 18px;
 	}
-
-	.border-xkcd {
-		border-image: url('/border-image-0.png');
-		border-image-slice: 13% 7%;
-		border-image-width: 30px;
-	}
 </style>

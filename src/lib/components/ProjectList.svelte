@@ -38,6 +38,9 @@
 		}
 		return 0;
 	});
+
+	$: selectedProject = 0;
+	$: hoveredProject = -1;
 </script>
 
 <div>
