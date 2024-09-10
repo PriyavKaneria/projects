@@ -42,6 +42,8 @@
 			const selectedTab = tabList.querySelector(`#tab-${selectedPlotIndex}`)!;
 			selectedTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 		})();
+
+	$: hoveredProject = '';
 </script>
 
 <div class="flex flex-col">
@@ -56,7 +58,7 @@
 
 	<div class="xkcd-script static mt-32 flex h-full w-full overflow-x-hidden">
 		<!-- Left Section for Project List -->
-		<div class="mb-64 w-2/5 p-4">
+		<div class="mb-64 w-2/5 p-4" id="left">
 			<!-- sort dropdown -->
 			<div class="-mt-8 mb-4 flex items-center justify-end gap-3">
 				<label for="sort" class="text-sm text-muted-foreground">Sort by:</label>
@@ -71,7 +73,7 @@
 					<option value="recency">Recency</option>
 				</select>
 			</div>
-			<ProjectList {projects} sortBy={sortListBy} />
+			<ProjectList {projects} sortBy={sortListBy} {hoveredProject} />
 		</div>
 
 		<!-- Left section fade-out top -->
@@ -85,7 +87,7 @@
 		/>
 
 		<!-- Right Section for Graph Plot -->
-		<div class="fixed right-0 flex h-[calc(100vh-10rem)] w-3/5 flex-col p-4">
+		<div class="fixed right-0 flex h-[calc(100vh-10rem)] w-3/5 flex-col p-4" id="right">
 			<!-- Tab Bar using shadcn/ui -->
 			<Tabs value={selectedPlotIndex.toString()} onValueChange={handleTabSelect} class="w-full">
 				<button
@@ -122,7 +124,7 @@
 				</button>
 			</Tabs>
 			<div class="mt-4 h-full">
-				<GraphPlot {selectedPlot} />
+				<GraphPlot {selectedPlot} bind:hoveredProject />
 			</div>
 		</div>
 	</div>

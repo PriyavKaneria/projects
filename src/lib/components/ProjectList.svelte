@@ -11,6 +11,7 @@
 
 	export let projects: Project[] = [];
 	export let sortBy: 'loc' | 'stars' | 'title' | 'recency' = 'stars';
+	export let hoveredProject: string;
 
 	const formatLinesOfCode = (lines: number) => {
 		if (lines < 1000) {
@@ -39,13 +40,22 @@
 		return 0;
 	});
 
-	$: selectedProject = 0;
-	$: hoveredProject = -1;
+	$: hoveredProject &&
+		(() => {
+			// scroll the project into view
+			const project = document.getElementById(hoveredProject.toLowerCase())!;
+			if (project) {
+				project.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+			}
+		})();
 </script>
 
 <div>
 	{#each projects as project}
-		<Card class="mb-4 rounded-none">
+		<Card
+			id={String(project.title).toLowerCase()}
+			class={`mb-4 rounded-none transition-all duration-100 ${hoveredProject.toLowerCase() === project.title.toLowerCase() ? 'origin-left scale-110' : ''}`}
+		>
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
 				<CardTitle class="text-lg font-medium">
 					{project.title}

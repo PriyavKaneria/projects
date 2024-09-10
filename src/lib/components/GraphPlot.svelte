@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as d3 from 'd3';
+	import { projects } from '$lib/loc_analysis';
 
 	export let selectedPlot: string;
+	export let hoveredProject: string;
 
 	let svg: SVGSVGElement;
 	let container: HTMLDivElement;
@@ -11,16 +13,16 @@
 		[key: string]: { x: number; y: number; size: number; project: string }[];
 	} = {
 		'Code Density vs. Commit Frequency': [
-			{ x: 10, y: 2, size: 5, project: 'Project A' },
-			{ x: 50, y: 4, size: 9, project: 'Project B' },
-			{ x: 30, y: 6, size: 10, project: 'Project C' },
-			{ x: 40, y: 8, size: 4, project: 'Project D' },
-			{ x: 60, y: 10, size: 5, project: 'Project E' },
-			{ x: 20, y: 12, size: 6, project: 'Project F' },
-			{ x: 70, y: 14, size: 7, project: 'Project G' },
-			{ x: 30, y: 16, size: 8, project: 'Project H' },
-			{ x: 90, y: 18, size: 3, project: 'Project I' },
-			{ x: 80, y: 20, size: 10, project: 'Project J' }
+			{ x: 10, y: 2, size: 5, project: 'AutoDJ' },
+			{ x: 50, y: 4, size: 9, project: 'AutoDJ' },
+			{ x: 30, y: 6, size: 10, project: 'AutoDJ' },
+			{ x: 40, y: 8, size: 4, project: 'AutoDJ' },
+			{ x: 60, y: 10, size: 5, project: 'AutoDJ' },
+			{ x: 20, y: 12, size: 6, project: 'AutoDJ' },
+			{ x: 70, y: 14, size: 7, project: 'AutoDJ' },
+			{ x: 30, y: 16, size: 8, project: 'AutoDJ' },
+			{ x: 90, y: 18, size: 3, project: 'AutoDJ' },
+			{ x: 80, y: 20, size: 10, project: 'AutoDJ' }
 		]
 		// Add data for other plots
 	};
@@ -132,18 +134,21 @@
 
 		// Tooltip
 		const tooltip = d3
-			.select('body')
+			.select('#right')
 			.append('div')
 			.style('position', 'absolute')
 			.style('font-family', 'xkcd-script')
-			.style('visibility', 'hidden')
 			.style('background', '#f0f0f0')
 			.style('padding', '8px')
 			.style('border-radius', '5px')
 			.style('box-shadow', '0 0 10px rgba(0, 0, 0, 0.2)')
 			.style('display', 'flex')
 			.style('flex-direction', 'column')
-			.style('transform', 'translateX(-50%) translateY(-100%)');
+			.style('transform', 'translateX(-50%) translateY(-100%)')
+			.style('opacity', 0)
+			.style('transition', 'opacity 0.4s ease-in-out');
+		const rightDiv = document.getElementById('right')!;
+		const leftDiv = document.getElementById('left')!;
 
 		// Dotted lines to axes
 		svgElement
@@ -204,7 +209,7 @@
 			.on('mouseover', function (event, d: any) {
 				// multiline text content tooltip
 				let t = tooltip
-					.style('visibility', 'visible')
+					.style('opacity', 1)
 					.text(`Project: ${d.project}`)
 					.attr('x', x(d.date))
 					.attr('y', y(d.distance) + 10);
@@ -222,15 +227,27 @@
 					.style('outline', 'gray dashed 1px')
 					.style('outline-offset', '3px')
 					.style('border-radius', '50%');
+
+				// highlight project in parent component
+				hoveredProject = plotData[selectedPlot][Number(index)].project;
 			})
 			.on('mousemove', function (event) {
-				tooltip.style('top', `${event.pageY - 10}px`).style('left', `${event.pageX + 10}px`);
+				const offsetTop = rightDiv.offsetTop + window.scrollY;
+				const offsetLeft = rightDiv.offsetLeft;
+
+				tooltip
+					.style('top', `${event.pageY - offsetTop - 10}px`)
+					.style('left', `${event.pageX - offsetLeft + 10}px`);
 			})
 			.on('mouseout', function () {
-				tooltip.style('visibility', 'hidden');
+				tooltip.style('opacity', 0);
+				setTimeout(() => {
+					tooltip.style('top', '-9999px').style('left', '-9999px');
+				}, 500);
 				const index = d3.select(this).attr('id').split('-')[1];
 				d3.select(`#dotted-line-${index}`).style('opacity', 0.1);
 				d3.select(`#dot-${index}`).style('outline', 'none');
+				hoveredProject = '';
 			});
 	}
 </script>
