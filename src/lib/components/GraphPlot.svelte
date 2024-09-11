@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import * as d3 from 'd3';
-	import { projects } from '$lib/loc_analysis';
+	import {
+		plotTypes,
+		projectPlottingData,
+		type PlotDataType,
+		type ScatterPlotData
+	} from '$lib/loc_analysis';
 
 	export let selectedPlot: string;
 	export let hoveredProject: string;
@@ -9,30 +13,34 @@
 	let svg: SVGSVGElement;
 	let container: HTMLDivElement;
 
+	const plotType = plotTypes[selectedPlot];
 	const plotData: {
-		[key: string]: { x: number; y: number; size: number; project: string }[];
-	} = {
-		'Code Density vs. Commit Frequency': [
-			{ x: 10, y: 2, size: 5, project: 'AutoDJ' },
-			{ x: 50, y: 4, size: 9, project: 'AutoDJ' },
-			{ x: 30, y: 6, size: 10, project: 'AutoDJ' },
-			{ x: 40, y: 8, size: 4, project: 'AutoDJ' },
-			{ x: 60, y: 10, size: 5, project: 'AutoDJ' },
-			{ x: 20, y: 12, size: 6, project: 'AutoDJ' },
-			{ x: 70, y: 14, size: 7, project: 'AutoDJ' },
-			{ x: 30, y: 16, size: 8, project: 'AutoDJ' },
-			{ x: 90, y: 18, size: 3, project: 'AutoDJ' },
-			{ x: 80, y: 20, size: 10, project: 'AutoDJ' }
-		]
-		// Add data for other plots
-	};
+		project: string;
+		data: PlotDataType[];
+	}[] = Object.entries(projectPlottingData).map(([project, projectData]) => ({
+		project: project,
+		data: projectData[selectedPlot].value
+	}));
 
 	$: if (selectedPlot && container) {
-		drawPlot();
+		if (plotType === 'scatter') drawScatterPlot();
 	}
 
-	function drawPlot() {
-		const data = plotData[selectedPlot] || [];
+	function drawScatterPlot() {
+		// for scatter plot, plotData has an array of arrays with each array containing data for a project as 0th element
+		// const scatterData = plotData.map((projectData) => projectData.data[0] as ScatterPlotData);
+		const data: { x: number; y: number; size: number; project: string }[] = plotData.map(
+			(projectData) => {
+				const project = projectData.project;
+				const projectDataArray = projectData.data[0] as ScatterPlotData;
+				return {
+					x: projectDataArray.x,
+					y: projectDataArray.y,
+					size: 5,
+					project: project
+				};
+			}
+		);
 
 		const width = container.clientWidth - 100;
 		const height = container.clientHeight - 100;
@@ -53,15 +61,44 @@
 		const innerHeight = height - margin.top - margin.bottom;
 
 		// X and Y scales
+		// Helper function to calculate Q1, Q3, and IQR
+		function calculateStats(arr: number[]): { q1: number; q3: number; iqr: number } {
+			const sorted = arr.sort((a, b) => a - b);
+			const q1 = d3.quantile(sorted, 0.25) || 0;
+			const q3 = d3.quantile(sorted, 0.75) || 0;
+			const iqr = q3 - q1;
+			return { q1, q3, iqr };
+		}
+
+		// Helper function to filter outliers
+		const IQRFactor = 10;
+		function filterOutliers(
+			arr: number[],
+			{ q1, q3, iqr }: { q1: number; q3: number; iqr: number }
+		): number[] {
+			const lowerBound = q1 - IQRFactor * iqr;
+			const upperBound = q3 + IQRFactor * iqr;
+			return arr.filter((v) => v >= lowerBound && v <= upperBound);
+		}
+
+		// Calculate stats and filter outliers for x and y
+		const xValues = data.map((d) => d.x);
+		const yValues = data.map((d) => d.y);
+		const xStats = calculateStats(xValues);
+		const yStats = calculateStats(yValues);
+		const filteredX = filterOutliers(xValues, xStats);
+		const filteredY = filterOutliers(yValues, yStats);
+
+		// Create scales without outliers
 		const x = d3
 			.scaleLinear()
-			.domain([0, d3.max(data, (d: { x: any }) => d.x)])
+			.domain([d3.min(filteredX) || 0, d3.max(filteredX) || 0])
 			.nice()
 			.range([0, innerWidth]);
 
 		const y = d3
 			.scaleLinear()
-			.domain([0, d3.max(data, (d: { y: any }) => d.y)])
+			.domain([d3.min(filteredY) || 0, d3.max(filteredY) || 0])
 			.nice()
 			.range([innerHeight, 0]);
 
@@ -229,7 +266,7 @@
 					.style('border-radius', '50%');
 
 				// highlight project in parent component
-				hoveredProject = plotData[selectedPlot][Number(index)].project;
+				hoveredProject = d.project;
 			})
 			.on('mousemove', function (event) {
 				const offsetTop = rightDiv.offsetTop + window.scrollY;

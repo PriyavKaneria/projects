@@ -937,6 +937,7 @@
 			".rs": 13925
 		},
 		"description": "Unnamed repository; edit this file 'description' to name the repository.",
+		"private": true,
 		"contributions": {
 			"total_commits": 130,
 			"total_lines_changed": {
@@ -966,6 +967,7 @@
 			".css": 239
 		},
 		"description": "Unnamed repository; edit this file 'description' to name the repository.",
+		"private": true,
 		"contributions": {
 			"total_commits": 4,
 			"total_lines_changed": {

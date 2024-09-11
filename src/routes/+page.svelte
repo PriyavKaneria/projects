@@ -4,29 +4,11 @@
 
 	import ProjectList from '$lib/components/ProjectList.svelte';
 	import GraphPlot from '$lib/components/GraphPlot.svelte';
-	import { projects } from '$lib/loc_analysis';
+	import { plotNames, projects } from '$lib/loc_analysis';
 	import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-svelte';
 
 	let selectedPlotIndex = 0;
-	$: selectedPlot = plotOptions[selectedPlotIndex];
-
-	const plotOptions = [
-		'Code Density vs. Commit Frequency',
-		'Language Diversity vs. Project Size',
-		'Comment Ratio vs. Code Churn',
-		'Commit Size Evolution',
-		'Productivity Pulse',
-		'Code Growth vs. Commit Frequency',
-		'File Type Distribution vs. Project Size',
-		'Commit Size Distribution',
-		'Code Consistency Over Time',
-		'Project Complexity Evolution',
-		'Language Transition',
-		'Commit Pattern Analysis',
-		'Code-to-Resource Ratio',
-		'Project Heartbeat',
-		'Cross-Project Influence'
-	];
+	$: selectedPlot = plotNames[selectedPlotIndex];
 
 	$: tabList = undefined as HTMLDivElement | undefined;
 	let sortListBy: 'loc' | 'stars' | 'title' | 'recency' = 'stars';
@@ -104,7 +86,7 @@
 					<ScrollAreaScrollbar orientation="horizontal" />
 					<div class="relative ml-8 h-10 w-full" bind:this={tabList}>
 						<TabsList class="absolute flex h-10">
-							{#each plotOptions as tab, index}
+							{#each plotNames as tab, index}
 								<TabsTrigger value={index.toString()} id={`tab-${index}`}>
 									{tab}
 								</TabsTrigger>
@@ -113,7 +95,7 @@
 					</div>
 				</ScrollArea>
 				<button
-					on:click={() => selectedPlotIndex < plotOptions.length - 1 && selectedPlotIndex++}
+					on:click={() => selectedPlotIndex < plotNames.length - 1 && selectedPlotIndex++}
 					class="pointer-events-auto absolute right-0 top-9 z-20 h-6 w-6 -translate-y-1/2 transform text-gray-500"
 				>
 					<!-- fade out right -->
