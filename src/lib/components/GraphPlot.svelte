@@ -1,30 +1,41 @@
 <script lang="ts">
 	import * as d3 from 'd3';
 	import {
-		plotTypes,
+		plotMetadata,
 		projectPlottingData,
 		type PlotDataType,
 		type ScatterPlotData
 	} from '$lib/loc_analysis';
+	import { Slider } from '$lib/components/ui/slider';
 
 	export let selectedPlot: string;
 	export let hoveredProject: string;
 
 	let svg: SVGSVGElement;
 	let container: HTMLDivElement;
-
-	const plotType = plotTypes[selectedPlot];
-	const plotData: {
+	let plotType: string;
+	let plotData: {
 		project: string;
 		data: PlotDataType[];
-	}[] = Object.entries(projectPlottingData).map(([project, projectData]) => ({
-		project: project,
-		data: projectData[selectedPlot].value
-	}));
+	}[];
+	let IQRFactor = [1.5];
 
-	$: if (selectedPlot && container) {
+	const handlePlotChange = (selectedPlot: string) => {
+		plotType = plotMetadata[selectedPlot].type;
+		plotData = Object.entries(projectPlottingData).map(([project, projectData]) => ({
+			project: project,
+			data: projectData[selectedPlot].value
+		}));
+		const recommendedIQRFactor = plotMetadata[selectedPlot].IQRFactor || 1.5;
+		IQRFactor = [recommendedIQRFactor];
+	};
+	$: container && handlePlotChange(selectedPlot);
+
+	const handleRedraw = () => {
 		if (plotType === 'scatter') drawScatterPlot();
-	}
+	};
+
+	$: IQRFactor && handleRedraw();
 
 	function drawScatterPlot() {
 		// for scatter plot, plotData has an array of arrays with each array containing data for a project as 0th element
@@ -42,8 +53,8 @@
 			}
 		);
 
-		const width = container.clientWidth - 100;
-		const height = container.clientHeight - 100;
+		const width = container.clientWidth - 50;
+		const height = container.clientHeight - 50;
 		const margin = { top: 20, right: 20, bottom: 100, left: 100 };
 
 		// Clear previous SVG content
@@ -71,13 +82,13 @@
 		}
 
 		// Helper function to filter outliers
-		const IQRFactor = 10;
 		function filterOutliers(
 			arr: number[],
 			{ q1, q3, iqr }: { q1: number; q3: number; iqr: number }
 		): number[] {
-			const lowerBound = q1 - IQRFactor * iqr;
-			const upperBound = q3 + IQRFactor * iqr;
+			const lowerBound = q1 - IQRFactor[0] * iqr;
+			const upperBound = q3 + IQRFactor[0] * iqr;
+			// return filtered array and outliers
 			return arr.filter((v) => v >= lowerBound && v <= upperBound);
 		}
 
@@ -117,7 +128,15 @@
 		}
 
 		// X Axis (wobbly)
-		const xAxis = d3.axisBottom(x);
+		const xAxis = d3.axisBottom(x).tickFormat(
+			// convert to K and M for large numbers
+			(d) =>
+				d.valueOf() < 1000
+					? d.toString()
+					: d.valueOf() < 1000000
+						? `${(d.valueOf() / 1000).toFixed(1).replace(/\.0$/, '')}K` // replace ending .0 with empty string
+						: `${(d.valueOf() / 1000000).toFixed(1).replace(/\.0$/, '')}M`
+		);
 		svgElement
 			.append('path')
 			.attr('d', wobbleLine(0, innerHeight, innerWidth, innerHeight))
@@ -140,10 +159,18 @@
 			.attr('y', innerHeight + 70)
 			.attr('text-anchor', 'middle')
 			.style('font-size', '1.5rem')
-			.text('Code Density');
+			.text(plotMetadata[selectedPlot].xLabel || 'X Axis');
 
 		// Y Axis (wobbly)
-		const yAxis = d3.axisLeft(y);
+		const yAxis = d3.axisLeft(y).tickFormat(
+			// convert to K and M for large numbers
+			(d) =>
+				d.valueOf() < 1000
+					? d.toString()
+					: d.valueOf() < 1000000
+						? `${(d.valueOf() / 1000).toFixed(1).replace(/\.0$/, '')}K` // replace ending .0 with empty string
+						: `${(d.valueOf() / 1000000).toFixed(1).replace(/\.0$/, '')}M`
+		);
 		svgElement
 			.append('path')
 			.attr('d', wobbleLine(0, innerHeight, 0, 0))
@@ -167,7 +194,7 @@
 			.attr('text-anchor', 'middle')
 			.attr('transform', 'rotate(-90)')
 			.style('font-size', '1.5rem')
-			.text('Commit Frequency');
+			.text(plotMetadata[selectedPlot].yLabel || 'Y Axis');
 
 		// Tooltip
 		const tooltip = d3
@@ -224,10 +251,10 @@
 			.attr('id', (d, i) => `dot-${i}`)
 			.attr('cx', (d: { x: any }) => x(d.x))
 			.attr('cy', (d: { y: any }) => y(d.y))
-			.attr('r', 0)
+			// .attr('r', 0)
 			.attr('fill', 'steelblue')
-			.transition()
-			.duration(500)
+			// .transition()
+			// .duration(500)
 			.attr('r', (d: { size: any }) => d.size);
 
 		// Hover circles
@@ -251,11 +278,11 @@
 					.attr('x', x(d.date))
 					.attr('y', y(d.distance) + 10);
 				t.append('tspan')
-					.text(`Density: ${d.x}`)
+					.text(`${plotMetadata[selectedPlot].xLabel}: ${d.x}`)
 					.attr('x', x(d.date))
 					.attr('y', y(d.distance) + 30);
 				t.append('tspan')
-					.text(`Frequency: ${d.y}`)
+					.text(`${plotMetadata[selectedPlot].yLabel}: ${d.y}`)
 					.attr('x', x(d.date))
 					.attr('y', y(d.distance) + 50);
 				const index = d3.select(this).attr('id').split('-')[1];
@@ -289,6 +316,14 @@
 	}
 </script>
 
-<div bind:this={container} class="flex h-full w-full items-center justify-center">
-	<svg bind:this={svg} />
+<div class="flex h-full w-full flex-col items-center justify-center">
+	<div bind:this={container} class="flex h-full w-full items-center justify-center">
+		<svg bind:this={svg} />
+	</div>
+	<!-- Slider for overriding IQRFactor -->
+	<div class="flex w-3/5 items-center justify-start">
+		<label for="IQRFactor" class="mr-2 text-lg">IQRFactor:</label>
+		<Slider bind:value={IQRFactor} min={0} max={100} step={0.5} class="w-96" />
+		<span class="ml-2 w-10 text-lg">{IQRFactor}</span>
+	</div>
 </div>

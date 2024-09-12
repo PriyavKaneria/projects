@@ -131,6 +131,9 @@ interface PlotGenerator {
 	key: string;
 	type: string;
 	generate: (locData: LocAnalysis) => PlotDataType[];
+	xLabel?: string;
+	yLabel?: string;
+	IQRFactor?: number;
 }
 
 const plotGenerators: PlotGenerator[] = [
@@ -145,7 +148,10 @@ const plotGenerators: PlotGenerator[] = [
 						: 0,
 				y: locData.contributions?.total_commits || 0
 			}
-		]
+		],
+		xLabel: 'Median Commit Size',
+		yLabel: 'Total Commits',
+		IQRFactor: 10
 	},
 	{
 		key: 'Language Polyglot Index',
@@ -155,7 +161,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.total_files,
 				y: Object.keys(locData.language_distribution).length
 			}
-		]
+		],
+		xLabel: 'Total Files',
+		yLabel: 'Number of Languages'
 	},
 	{
 		key: 'Code Verbosity Spectrum',
@@ -165,7 +173,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.total_lines_of_code,
 				y: locData.total_comments
 			}
-		]
+		],
+		xLabel: 'Total Lines of Code',
+		yLabel: 'Total Comments'
 	},
 	{
 		key: 'Project Lifecycle Heatmap',
@@ -176,7 +186,9 @@ const plotGenerators: PlotGenerator[] = [
 				y: locData.contributions?.last_commit_date || '',
 				z: locData.total_lines_of_code
 			}
-		]
+		],
+		xLabel: 'First Commit Date',
+		yLabel: 'Last Commit Date'
 	},
 	{
 		key: 'Blank Space Odyssey',
@@ -186,7 +198,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.total_lines,
 				y: locData.total_blanks
 			}
-		]
+		],
+		xLabel: 'Total Lines',
+		yLabel: 'Total Blanks'
 	},
 	{
 		key: 'Commit Time Warp',
@@ -201,7 +215,9 @@ const plotGenerators: PlotGenerator[] = [
 					y: locData.contributions?.total_commits || 0
 				}
 			];
-		}
+		},
+		xLabel: 'Project Age (days)',
+		yLabel: 'Total Commits'
 	},
 	{
 		key: 'Language Loyalty Chart',
@@ -211,7 +227,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: language,
 				y: (lines / locData.total_lines_of_code) * 100 // percentage
 			}));
-		}
+		},
+		xLabel: 'Language',
+		yLabel: 'Percentage of Code'
 	},
 	{
 		key: 'Code Churn Tornado',
@@ -221,7 +239,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.contributions?.total_lines_changed.additions || 0,
 				y: locData.contributions?.total_lines_changed.deletions || 0
 			}
-		]
+		],
+		xLabel: 'Total Lines Added',
+		yLabel: 'Total Lines Deleted'
 	},
 	{
 		key: 'Star Constellation',
@@ -231,7 +251,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.total_lines_of_code,
 				y: locData.stars || 0
 			}
-		]
+		],
+		xLabel: 'Total Lines of Code',
+		yLabel: 'Stars'
 	},
 	{
 		key: 'Topic Galaxy',
@@ -241,7 +263,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.topics?.length || 0,
 				y: locData.total_files
 			}
-		]
+		],
+		xLabel: 'Number of Topics',
+		yLabel: 'Total Files'
 	},
 	{
 		key: 'Comment Density',
@@ -251,7 +275,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.total_lines_of_code,
 				y: (locData.total_comments / locData.total_lines_of_code) * 100 // percentage
 			}
-		]
+		],
+		xLabel: 'Total Lines of Code',
+		yLabel: 'Comment Density (%)'
 	},
 	{
 		key: 'Project Privacy vs Size',
@@ -261,7 +287,9 @@ const plotGenerators: PlotGenerator[] = [
 				x: locData.total_lines_of_code,
 				y: locData.private ? 1 : 0 // 1 for private, 0 for public
 			}
-		]
+		],
+		xLabel: 'Total Lines of Code',
+		yLabel: 'Private Repository'
 	},
 	{
 		key: 'Commit Size Distribution',
@@ -273,7 +301,9 @@ const plotGenerators: PlotGenerator[] = [
 				{ x: 'Medium', y: medianSize >= 10 && medianSize < 100 ? 1 : 0 },
 				{ x: 'Large', y: medianSize >= 100 ? 1 : 0 }
 			];
-		}
+		},
+		xLabel: 'Commit Size',
+		yLabel: 'Number of Commits'
 	},
 	{
 		key: 'Language Diversity',
@@ -283,13 +313,23 @@ const plotGenerators: PlotGenerator[] = [
 				label: language,
 				value: lines
 			}));
-		}
+		},
+		xLabel: 'Language',
+		yLabel: 'Lines of Code'
 	}
 ];
 
 export const plotNames = plotGenerators.map((generator) => generator.key);
-export const plotTypes = Object.fromEntries(
-	plotGenerators.map((generator) => [generator.key, generator.type])
+export const plotMetadata = Object.fromEntries(
+	plotGenerators.map((generator) => [
+		generator.key,
+		{
+			type: generator.type,
+			xLabel: generator.xLabel,
+			yLabel: generator.yLabel,
+			IQRFactor: generator.IQRFactor
+		}
+	])
 );
 
 function generateProjectPlottingData(
