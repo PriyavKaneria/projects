@@ -365,10 +365,10 @@
 		<svg bind:this={svg} />
 	</div>
 	<!-- Slider for overriding IQRFactor -->
-	<div class="items-top ml-32 flex w-full justify-start" on:wheel={handleScroll}>
+	<div class="items-top ml-[30%] flex w-full justify-start" on:wheel={handleScroll}>
 		<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
 		<Slider bind:value={IQRFactor} min={5} max={100} step={5} class="w-96" />
-		<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers </label>
+		<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers &nbsp; (scroll)</label>
 	</div>
 	<span class="ml-3 mt-3 inline w-full text-center">Inter Quartile Range factor : {IQRFactor}</span>
 </div>

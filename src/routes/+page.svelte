@@ -51,6 +51,7 @@
 			.optimize(true)
 			.orientation('horizontal')
 			.useLabels(true)
+			.urlTarget('_blank')
 			.autoResize(true)
 			.render(
 				projects.map((p) => ({
@@ -74,11 +75,11 @@
 			} else if (zoomLevel < 6) {
 				aggregationLevel = 'month';
 				fontSize = '18px'; // Zoomed in font size for months
-				labelFormat = '%mm %Y'; // Adjust label format for months
+				labelFormat = '%b %Y'; // Adjust label format for months
 			} else {
 				aggregationLevel = 'week';
 				fontSize = '22px'; // Even larger font size for weeks
-				labelFormat = 'week %U, %Y'; // Adjust label format for weeks
+				labelFormat = '%b, %Y'; // Adjust label format for weeks
 			}
 
 			// Dynamically adjust timeline based on aggregation level and font size
@@ -231,22 +232,30 @@
 				}}
 				on:mousemove={handleDrag}
 				aria-hidden={selectedPlot !== 'Timeline'}
-				class="mt-4 h-full cursor-pointer"
+				class="mt-4 h-full cursor-pointer overflow-x-hidden"
 			>
 				<div
-					class={`relative h-full w-full select-none overflow-x-hidden overflow-y-hidden ${selectedPlot === 'Timeline' ? '' : 'hidden'} ${
+					class={`relative h-full w-full select-none overflow-x-hidden overflow-y-hidden px-16 ${selectedPlot === 'Timeline' ? '' : 'hidden'} ${
 						dragging ? 'cursor-grabbing' : 'cursor-grab'
 					}`}
 					bind:this={timelineElement}
 				>
-					<div id="timeline" class="relative my-auto h-full w-full text-xs"></div>
+					<div id="timeline" class="relative my-auto h-full w-full overflow-x-hidden text-xs"></div>
 				</div>
+				<!-- left fade out -->
 				<div
-					class={`items-top absolute bottom-16 ml-32 flex w-max ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
+					class={`absolute left-0 top-0 h-full w-28 bg-gradient-to-l from-transparent to-white ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
+				/>
+				<!-- right fade out -->
+				<div
+					class={`absolute right-0 top-0 h-full w-28 bg-gradient-to-r from-transparent to-white ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
+				/>
+				<div
+					class={`items-top absolute bottom-16 ml-[20%] flex w-max ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
 				>
-					<label for="IQRFactor" class="mx-4 text-lg"> Zoom out </label>
+					<label for="zoom" class="mx-4 text-lg"> Zoom out </label>
 					<Slider bind:value={zoomBind} min={0} max={10} step={1} class="w-96" />
-					<label for="IQRFactor" class="mx-4 text-lg"> Zoom In </label>
+					<label for="zoom" class="mx-4 text-lg"> Zoom In &nbsp; (scroll) </label>
 				</div>
 				{#if selectedPlot !== 'Timeline'}
 					<GraphPlot {selectedPlot} bind:hoveredProject></GraphPlot>
