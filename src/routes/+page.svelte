@@ -6,6 +6,11 @@
 	import GraphPlot from '$lib/components/GraphPlot.svelte';
 	import { plotNames, projects } from '$lib/loc_analysis';
 	import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	// @ts-expect-error
+	import milestones from 'd3-milestones';
+	import 'd3-milestones/build/d3-milestones.css';
+	import Slider from '$lib/components/ui/slider/slider.svelte';
 
 	let selectedPlotIndex = 0;
 	$: selectedPlot = plotNames[selectedPlotIndex];
@@ -26,6 +31,115 @@
 		})();
 
 	$: hoveredProject = '';
+
+	$: zoomBind = [0];
+	$: zoomLevel = zoomBind[0];
+	$: zoomLevel != undefined && updateTimeline && updateTimeline();
+	let mouseXPosition = 0;
+	let updateTimeline: () => void;
+	let timelineElement: HTMLDivElement;
+	let timelineTranslateX = 0;
+	onMount(() => {
+		// setup timeline
+		const vis = milestones('#timeline')
+			.mapping({
+				timestamp: 'timestamp',
+				text: 'title'
+			})
+			.parseTime('%Y-%m-%d %H:%M:%S')
+			.aggregateBy('year') // Start with years
+			.optimize(true)
+			.orientation('horizontal')
+			.useLabels(true)
+			.autoResize(true)
+			.render(
+				projects.map((p) => ({
+					timestamp: p.first_commit_date,
+					title: `${p.title}`,
+					url: p.link
+				}))
+			);
+
+		// Function to update timeline based on scroll
+		updateTimeline = () => {
+			let aggregationLevel;
+			let fontSize;
+			let labelFormat;
+
+			// Dynamically set aggregation level and font size based on scrollY
+			if (zoomLevel < 3) {
+				aggregationLevel = 'year';
+				fontSize = '14px'; // Normal font size for years
+				labelFormat = '%Y'; // Adjust label format for years
+			} else if (zoomLevel < 6) {
+				aggregationLevel = 'month';
+				fontSize = '18px'; // Zoomed in font size for months
+				labelFormat = '%mm %Y'; // Adjust label format for months
+			} else {
+				aggregationLevel = 'week';
+				fontSize = '22px'; // Even larger font size for weeks
+				labelFormat = 'week %U, %Y'; // Adjust label format for weeks
+			}
+
+			// Dynamically adjust timeline based on aggregation level and font size
+			vis
+				.aggregateBy(aggregationLevel)
+				.useLabels(true)
+				.labelFormat(labelFormat)
+				.render(
+					projects.map((p) => ({
+						timestamp: p.first_commit_date,
+						title: `${p.title}`,
+						url: p.link
+					}))
+				);
+
+			// Apply the font size to the timeline labels
+			// document.getElementById('timeline')!.style.fontSize = fontSize;
+
+			// Keep the mouse position at the center of the timeline
+			// increase the width of the timeline to keep the mouse position at the center
+			// scale it acc to timelineScroll
+			const timelineScroll = zoomLevel * 100;
+			timelineElement.parentElement!.style.width = `calc(100% + ${timelineScroll}px)`;
+			// translate the timeline to keep the mouseXPosition at the center
+			const timelineBoudingRect = timelineElement.getBoundingClientRect();
+			const timelineWidth = timelineBoudingRect.width;
+			const offsetLeft = timelineBoudingRect.left;
+			timelineTranslateX = ((mouseXPosition - offsetLeft) * timelineScroll) / timelineWidth;
+
+			timelineElement.style.transform = `translateX(-${timelineTranslateX}px)`;
+			vis.render();
+		};
+	});
+
+	const handleWheel = (event: WheelEvent) => {
+		if (selectedPlot !== 'Timeline') return;
+		event.preventDefault();
+		if (event.deltaY < 0 && zoomLevel < 10) {
+			zoomBind[0] += 1;
+		} else if (event.deltaY > 0 && zoomLevel > 0) {
+			zoomBind[0] -= 1;
+		}
+		mouseXPosition = event.clientX;
+		updateTimeline();
+	};
+
+	let dragging = false;
+	let dragStartX = 0;
+	const handleDrag = (event: MouseEvent) => {
+		if (selectedPlot !== 'Timeline' || !dragging || zoomLevel === 0) return;
+		event.preventDefault();
+
+		// translate limits
+		if (timelineTranslateX + dragStartX - event.clientX < 0) {
+			return;
+		} else if (timelineTranslateX + dragStartX - event.clientX > zoomLevel * 100) {
+			return;
+		}
+		mouseXPosition = event.clientX;
+		timelineElement.style.transform = `translateX(-${timelineTranslateX + dragStartX - event.clientX}px)`;
+	};
 </script>
 
 <div class="flex flex-col">
@@ -38,17 +152,13 @@
 		</div>
 	</div>
 
-	<div class="xkcd-script static mt-32 flex h-full w-full overflow-x-hidden">
+	<div class="xkcd-script static mt-32 flex h-full w-full">
 		<!-- Left Section for Project List -->
-		<div class="mb-64 w-2/5 p-4" id="left">
+		<div class="-mt-16 mb-64 w-2/5 overflow-y-visible p-4" id="left">
 			<!-- sort dropdown -->
-			<div class="-mt-8 mb-4 flex items-center justify-end gap-3">
-				<label for="sort" class="text-sm text-muted-foreground">Sort by:</label>
-				<select
-					id="sort"
-					class="bg-transparent text-sm text-muted-foreground"
-					bind:value={sortListBy}
-				>
+			<div class="-mt-8 mb-4 flex items-center justify-end gap-3 overflow-visible">
+				<label for="sort" class="text-sm text-foreground">Sort by:</label>
+				<select id="sort" class="bg-transparent text-sm text-foreground" bind:value={sortListBy}>
 					<option value="loc">Lines of Code</option>
 					<option value="stars">Stars</option>
 					<option value="title">Title</option>
@@ -105,8 +215,42 @@
 					<ChevronRightIcon class="h-6 w-6" />
 				</button>
 			</Tabs>
-			<div class="mt-4 h-full">
-				<GraphPlot {selectedPlot} bind:hoveredProject />
+			<div
+				on:wheel={handleWheel}
+				on:mousedown={(event) => {
+					dragging = true;
+					dragStartX = event.clientX;
+				}}
+				on:mouseup={() => {
+					dragging = false;
+					timelineTranslateX += dragStartX - mouseXPosition;
+				}}
+				on:mouseleave={() => {
+					dragging = false;
+					timelineTranslateX += dragStartX - mouseXPosition;
+				}}
+				on:mousemove={handleDrag}
+				aria-hidden={selectedPlot !== 'Timeline'}
+				class="mt-4 h-full cursor-pointer"
+			>
+				<div
+					class={`relative h-full w-full select-none overflow-x-hidden overflow-y-hidden ${selectedPlot === 'Timeline' ? '' : 'hidden'} ${
+						dragging ? 'cursor-grabbing' : 'cursor-grab'
+					}`}
+					bind:this={timelineElement}
+				>
+					<div id="timeline" class="relative my-auto h-full w-full text-xs"></div>
+				</div>
+				<div
+					class={`items-top absolute bottom-16 ml-32 flex w-max ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
+				>
+					<label for="IQRFactor" class="mx-4 text-lg"> Zoom out </label>
+					<Slider bind:value={zoomBind} min={0} max={10} step={1} class="w-96" />
+					<label for="IQRFactor" class="mx-4 text-lg"> Zoom In </label>
+				</div>
+				{#if selectedPlot !== 'Timeline'}
+					<GraphPlot {selectedPlot} bind:hoveredProject></GraphPlot>
+				{/if}
 			</div>
 		</div>
 	</div>

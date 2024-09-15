@@ -85,7 +85,7 @@ export const projects: Project[] = Object.keys(locAnalysis).map((key) => {
 export interface ScatterPlotData {
 	x: number;
 	y: number;
-	// size?: number;
+	size?: number;
 }
 
 export interface BarPlotData {
@@ -130,10 +130,11 @@ type ProjectPlottingData = Record<
 interface PlotGenerator {
 	key: string;
 	type: string;
-	generate: (locData: LocAnalysis) => PlotDataType[];
+	generate?: (locData: LocAnalysis) => PlotDataType[];
 	xLabel?: string;
 	yLabel?: string;
 	IQRFactor?: number;
+	globalGenerator?: (locAnalysis: Record<string, LocAnalysis>) => PlotDataType[];
 }
 
 const plotGenerators: PlotGenerator[] = [
@@ -151,7 +152,7 @@ const plotGenerators: PlotGenerator[] = [
 		],
 		xLabel: 'Median Commit Size',
 		yLabel: 'Total Commits',
-		IQRFactor: 10
+		IQRFactor: 5
 	},
 	{
 		key: 'Language Polyglot Index',
@@ -163,7 +164,22 @@ const plotGenerators: PlotGenerator[] = [
 			}
 		],
 		xLabel: 'Total Files',
-		yLabel: 'Number of Languages'
+		yLabel: 'Number of Languages',
+		IQRFactor: 25
+	},
+	{
+		key: 'Refactor Black Hole',
+		type: 'scatter',
+		generate: (locData) => [
+			{
+				x: locData.contributions?.total_commits || 0,
+				y: locData.contributions?.total_lines_changed.deletions || 0
+				// size: locData.total_lines_of_code
+			}
+		],
+		xLabel: 'Total Commits',
+		yLabel: 'Total Lines Deleted',
+		IQRFactor: 25
 	},
 	{
 		key: 'Code Verbosity Spectrum',
@@ -175,7 +191,8 @@ const plotGenerators: PlotGenerator[] = [
 			}
 		],
 		xLabel: 'Total Lines of Code',
-		yLabel: 'Total Comments'
+		yLabel: 'Total Comments',
+		IQRFactor: 20
 	},
 	{
 		key: 'Project Lifecycle Heatmap',
@@ -218,6 +235,29 @@ const plotGenerators: PlotGenerator[] = [
 		},
 		xLabel: 'Project Age (days)',
 		yLabel: 'Total Commits'
+	},
+	{
+		key: 'Motivation curve',
+		type: 'bar',
+		globalGenerator: (locAnalysis) => {
+			// number of projects for n weeks since first commit
+			const projectAgeCounts: Record<number, number> = {};
+			for (const key in locAnalysis) {
+				const locData = locAnalysis[key];
+				const firstCommit = new Date(locData.contributions?.first_commit_date || '');
+				const lastCommit = new Date(locData.contributions?.last_commit_date || '');
+				const projectAge = (lastCommit.getTime() - firstCommit.getTime()) / (1000 * 60 * 60 * 24); // in days
+				const weeks = Math.floor(projectAge / 7);
+				projectAgeCounts[weeks] = (projectAgeCounts[weeks] || 0) + 1;
+			}
+
+			return Object.entries(projectAgeCounts).map(([weeks, count]) => ({
+				x: weeks,
+				y: count
+			}));
+		},
+		xLabel: 'Language',
+		yLabel: 'Percentage of Code'
 	},
 	{
 		key: 'Language Loyalty Chart',
@@ -319,7 +359,9 @@ const plotGenerators: PlotGenerator[] = [
 	}
 ];
 
-export const plotNames = plotGenerators.map((generator) => generator.key);
+const plotGeneratorKeys = plotGenerators.map((generator) => generator.key);
+plotGeneratorKeys.unshift('Timeline');
+export const plotNames = plotGeneratorKeys;
 export const plotMetadata = Object.fromEntries(
 	plotGenerators.map((generator) => [
 		generator.key,
@@ -348,7 +390,11 @@ function generateProjectPlottingData(
 					generator.key,
 					{
 						plotType: generator.type,
-						value: generator.generate(locData)
+						value: generator.globalGenerator
+							? generator.globalGenerator(locAnalysis)
+							: generator.generate
+								? generator.generate(locData)
+								: []
 					}
 				])
 			);

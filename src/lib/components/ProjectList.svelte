@@ -99,20 +99,3 @@
 		</Card>
 	{/each}
 </div>
-
-<style>
-	.project-item {
-		margin-bottom: 1rem;
-		padding: 1rem;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.5rem;
-	}
-
-	.project-title {
-		font-weight: bold;
-	}
-
-	.project-description {
-		margin-top: 0.5rem;
-	}
-</style>

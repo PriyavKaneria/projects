@@ -87,9 +87,13 @@
 	letter-spacing: 0.1em;
 }
 
-.data-\[state\=active\]\:border-xkcd[data-state="active"] {
+.data-\[state\=active\]\:border-xkcd[data-state='active'] {
 	border-image: url('/border-image-0.png');
 	border-image-slice: 13% 7%;
 	border-image-width: 20px;
 	border-image-outset: 6px;
+}
+
+.milestones {
+	margin-top: calc(35vh) !important;
 }

@@ -47,12 +47,17 @@
 				return {
 					x: projectDataArray.x,
 					y: projectDataArray.y,
-					size: 5,
+					size: projectDataArray?.size || 5,
 					project: project
 				};
 			}
 		);
 
+		// normalize size to be between 5 and 20
+		const sizeExtent = d3.extent(data, (d) => d.size) as [number, number];
+		const sizeScale = d3.scaleLinear().domain(sizeExtent).range([2, 10]);
+
+		// Get container dimensions
 		const width = container.clientWidth - 50;
 		const height = container.clientHeight - 50;
 		const margin = { top: 20, right: 20, bottom: 100, left: 100 };
@@ -212,7 +217,6 @@
 			.style('opacity', 0)
 			.style('transition', 'opacity 0.4s ease-in-out');
 		const rightDiv = document.getElementById('right')!;
-		const leftDiv = document.getElementById('left')!;
 
 		// Dotted lines to axes
 		svgElement
@@ -242,6 +246,25 @@
 					.attr('opacity', 1);
 			});
 
+		// Define scales for x and y axis ranges
+		const maxX = d3.max(filteredX)!;
+		const maxY = d3.max(filteredY)!;
+		const maxDistance = Math.sqrt(maxX ** 2 + maxY ** 2);
+
+		// Color scale from green (near origin) to blue, then red (towards max x and y values)
+		const colorScale = d3
+			.scaleSequential(
+				(t) => d3.interpolateRgb('green', 'blue')(t / 2) // Green to Blue in first half
+			)
+			.domain([0, maxDistance / 2]);
+
+		// Extend color scale for blue to red
+		const redScale = d3
+			.scaleSequential((t) => d3.interpolateRgb('blue', 'red')(t))
+			.domain([maxDistance / 2, maxDistance]);
+
+		// Function to calculate distance from origin
+		const getDistanceFromOrigin = (d: { x: number; y: number }) => Math.sqrt(d.x ** 2 + d.y ** 2);
 		// Dots
 		svgElement
 			.selectAll('.dot')
@@ -252,10 +275,16 @@
 			.attr('cx', (d: { x: any }) => x(d.x))
 			.attr('cy', (d: { y: any }) => y(d.y))
 			// .attr('r', 0)
-			.attr('fill', 'steelblue')
+			.attr('fill', (d: { x: number; y: number }) => {
+				const distance = getDistanceFromOrigin(d);
+				return distance <= maxDistance / 2 ? colorScale(distance) : redScale(distance);
+			})
 			// .transition()
 			// .duration(500)
-			.attr('r', (d: { size: any }) => d.size);
+			.attr('r', (d: { size: any }) => {
+				// normalize size to be between 5 and 20
+				return sizeScale(d.size);
+			});
 
 		// Hover circles
 		svgElement
@@ -266,7 +295,12 @@
 			.attr('id', (d, i) => `dothover-${i}`)
 			.attr('cx', (d: { x: any }) => x(d.x))
 			.attr('cy', (d: { y: any }) => y(d.y))
-			.attr('r', (d: { size: any }) => d.size * 6)
+			.attr('r', (d: { size: any; x: any; y: any }) =>
+				// if IQRFactor is greater than 20 or x or y is in first 10% of xrange or yrange, decrease size of hover circle
+				IQRFactor[0] > 20 || (Math.abs(d.x) < maxX * 0.1 && Math.abs(d.y) < maxY * 0.1)
+					? sizeScale(d.size)
+					: sizeScale(d.size) * 6
+			)
 			.attr('fill', 'transparent')
 			.attr('stroke', 'transparent')
 			.attr('pointer-events', 'all')
@@ -314,6 +348,16 @@
 				hoveredProject = '';
 			});
 	}
+
+	function handleScroll(event: any) {
+		event.preventDefault();
+		// increment or decrement IQRFactor based on scroll direction
+		if (event.deltaY > 0) {
+			IQRFactor = [IQRFactor[0] + 5];
+		} else {
+			IQRFactor = [IQRFactor[0] - 5];
+		}
+	}
 </script>
 
 <div class="flex h-full w-full flex-col items-center justify-center">
@@ -321,9 +365,10 @@
 		<svg bind:this={svg} />
 	</div>
 	<!-- Slider for overriding IQRFactor -->
-	<div class="flex w-3/5 items-center justify-start">
-		<label for="IQRFactor" class="mr-2 text-lg">IQRFactor:</label>
-		<Slider bind:value={IQRFactor} min={0} max={100} step={0.5} class="w-96" />
-		<span class="ml-2 w-10 text-lg">{IQRFactor}</span>
+	<div class="items-top ml-32 flex w-full justify-start" on:wheel={handleScroll}>
+		<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
+		<Slider bind:value={IQRFactor} min={5} max={100} step={5} class="w-96" />
+		<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers </label>
 	</div>
+	<span class="ml-3 mt-3 inline w-full text-center">Inter Quartile Range factor : {IQRFactor}</span>
 </div>
