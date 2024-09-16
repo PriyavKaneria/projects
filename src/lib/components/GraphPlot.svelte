@@ -3,6 +3,7 @@
 	import {
 		plotMetadata,
 		projectPlottingData,
+		type HeatmapPlotData,
 		type PlotDataType,
 		type ScatterPlotData
 	} from '$lib/loc_analysis';
@@ -32,26 +33,48 @@
 	$: container && handlePlotChange(selectedPlot);
 
 	const handleRedraw = () => {
+		// hide tooltip on redraw
+		d3.select('#right').selectAll('.my-tooltip').remove();
+		// redraw based on plot type
 		if (plotType === 'scatter') drawScatterPlot();
+		else if (plotType === 'heatmap') drawHeatmap();
 	};
 
 	$: IQRFactor && handleRedraw();
 
+	// Helper function to calculate Q1, Q3, and IQR
+	function calculateStats(arr: number[]): { q1: number; q3: number; iqr: number } {
+		const sorted = arr.sort((a, b) => a - b);
+		const q1 = d3.quantile(sorted, 0.25) || 0;
+		const q3 = d3.quantile(sorted, 0.75) || 0;
+		const iqr = q3 - q1;
+		return { q1, q3, iqr };
+	}
+
+	// Helper function to filter outliers
+	function filterOutliers(
+		arr: number[],
+		{ q1, q3, iqr }: { q1: number; q3: number; iqr: number }
+	): number[] {
+		const lowerBound = q1 - IQRFactor[0] * iqr;
+		const upperBound = q3 + IQRFactor[0] * iqr;
+		// return filtered array and outliers
+		return arr.filter((v) => v >= lowerBound && v <= upperBound);
+	}
+
 	function drawScatterPlot() {
 		// for scatter plot, plotData has an array of arrays with each array containing data for a project as 0th element
 		// const scatterData = plotData.map((projectData) => projectData.data[0] as ScatterPlotData);
-		const data: { x: number; y: number; size: number; project: string }[] = plotData.map(
-			(projectData) => {
-				const project = projectData.project;
-				const projectDataArray = projectData.data[0] as ScatterPlotData;
-				return {
-					x: projectDataArray.x,
-					y: projectDataArray.y,
-					size: projectDataArray?.size || 5,
-					project: project
-				};
-			}
-		);
+		const data: ScatterPlotData[] = plotData.map((projectData) => {
+			const project = projectData.project;
+			const projectDataArray = projectData.data[0] as ScatterPlotData;
+			return {
+				x: projectDataArray.x,
+				y: projectDataArray.y,
+				size: projectDataArray?.size || 5,
+				project: project
+			};
+		});
 
 		// normalize size to be between 5 and 20
 		const sizeExtent = d3.extent(data, (d) => d.size) as [number, number];
@@ -77,26 +100,6 @@
 		const innerHeight = height - margin.top - margin.bottom;
 
 		// X and Y scales
-		// Helper function to calculate Q1, Q3, and IQR
-		function calculateStats(arr: number[]): { q1: number; q3: number; iqr: number } {
-			const sorted = arr.sort((a, b) => a - b);
-			const q1 = d3.quantile(sorted, 0.25) || 0;
-			const q3 = d3.quantile(sorted, 0.75) || 0;
-			const iqr = q3 - q1;
-			return { q1, q3, iqr };
-		}
-
-		// Helper function to filter outliers
-		function filterOutliers(
-			arr: number[],
-			{ q1, q3, iqr }: { q1: number; q3: number; iqr: number }
-		): number[] {
-			const lowerBound = q1 - IQRFactor[0] * iqr;
-			const upperBound = q3 + IQRFactor[0] * iqr;
-			// return filtered array and outliers
-			return arr.filter((v) => v >= lowerBound && v <= upperBound);
-		}
-
 		// Calculate stats and filter outliers for x and y
 		const xValues = data.map((d) => d.x);
 		const yValues = data.map((d) => d.y);
@@ -215,7 +218,9 @@
 			.style('flex-direction', 'column')
 			.style('transform', 'translateX(-50%) translateY(-100%)')
 			.style('opacity', 0)
-			.style('transition', 'opacity 0.4s ease-in-out');
+			.style('pointer-events', 'none')
+			.style('transition', 'opacity 0.4s ease-in-out')
+			.attr('class', 'my-tooltip');
 		const rightDiv = document.getElementById('right')!;
 
 		// Dotted lines to axes
@@ -281,9 +286,9 @@
 			})
 			// .transition()
 			// .duration(500)
-			.attr('r', (d: { size: any }) => {
+			.attr('r', (d) => {
 				// normalize size to be between 5 and 20
-				return sizeScale(d.size);
+				return sizeScale(d.size || 5);
 			});
 
 		// Hover circles
@@ -293,13 +298,13 @@
 			.join('circle')
 			.attr('class', 'hover-circle')
 			.attr('id', (d, i) => `dothover-${i}`)
-			.attr('cx', (d: { x: any }) => x(d.x))
-			.attr('cy', (d: { y: any }) => y(d.y))
-			.attr('r', (d: { size: any; x: any; y: any }) =>
+			.attr('cx', (d) => x(d.x))
+			.attr('cy', (d) => y(d.y))
+			.attr('r', (d) =>
 				// if IQRFactor is greater than 20 or x or y is in first 10% of xrange or yrange, decrease size of hover circle
 				IQRFactor[0] > 20 || (Math.abs(d.x) < maxX * 0.1 && Math.abs(d.y) < maxY * 0.1)
-					? sizeScale(d.size)
-					: sizeScale(d.size) * 6
+					? sizeScale(d.size || 5)
+					: sizeScale(d.size || 5) * 6
 			)
 			.attr('fill', 'transparent')
 			.attr('stroke', 'transparent')
@@ -339,14 +344,233 @@
 			})
 			.on('mouseout', function () {
 				tooltip.style('opacity', 0);
-				setTimeout(() => {
-					tooltip.style('top', '-9999px').style('left', '-9999px');
-				}, 500);
 				const index = d3.select(this).attr('id').split('-')[1];
 				d3.select(`#dotted-line-${index}`).style('opacity', 0.1);
 				d3.select(`#dot-${index}`).style('outline', 'none');
 				hoveredProject = '';
 			});
+	}
+
+	function drawHeatmap() {
+		let data: HeatmapPlotData[] = [];
+		plotData.forEach((projectData) => {
+			const projectDataArray = projectData.data as HeatmapPlotData[];
+			data = data.concat(
+				projectDataArray.map((d) => ({
+					x: d.x,
+					y: d.y,
+					z: d.z
+				}))
+			);
+		});
+
+		// Clear previous SVG content
+		d3.select(svg).selectAll('*').remove();
+
+		// Get container dimensions
+		const width = container.clientWidth - 50;
+		const height = container.clientHeight;
+		const margin = { top: 20, right: 200, bottom: 100, left: 300 };
+
+		const svgElement = d3
+			.select(svg)
+			.attr('width', width)
+			.attr('height', height)
+			.append('g')
+			.attr('transform', `translate(${margin.left},${margin.top})`)
+			.style('font-family', 'xkcd-script');
+
+		const innerWidth = width - margin.left - margin.right;
+		const innerHeight = height - margin.top - margin.bottom;
+
+		// Assuming data is in the format: [{ x: string, y: string, z: number }, ...]
+		const xLabels = Array.from(new Set(data.map((d) => d.x)));
+		const yLabels = Array.from(new Set(data.map((d) => d.y)));
+
+		// get min and max without outliers
+		const zValues = data.map((d) => d.z);
+		const zStats = calculateStats(zValues);
+		const filteredZ = filterOutliers(zValues, zStats);
+
+		// Create scales
+		const x = d3.scaleBand().range([0, innerWidth]).domain(xLabels).padding(0.05);
+		const y = d3.scaleBand().range([innerHeight, 0]).domain(yLabels).padding(0.05);
+
+		// Color scale
+		const colorScale = d3
+			.scaleSequential(d3.interpolateViridis)
+			.domain([d3.min(filteredZ) || 0, d3.max(filteredZ) || 0]);
+
+		// Function to generate wobbly line
+		function wobbleLine(x1: number, y1: number, x2: number, y2: number) {
+			const segments = 10;
+			let d = `M${x1},${y1}`;
+			for (let i = 1; i <= segments; i++) {
+				const x = x1 + (x2 - x1) * (i / segments);
+				const y = y1 + (y2 - y1) * (i / segments);
+				const wobbleX = (Math.random() - 0.5) * 4;
+				const wobbleY = (Math.random() - 0.5) * 4;
+				d += `L${x + wobbleX},${y + wobbleY}`;
+			}
+			return d;
+		}
+
+		// X Axis (wobbly)
+		svgElement
+			.append('path')
+			.attr('d', wobbleLine(0, innerHeight, innerWidth, innerHeight))
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+
+		const axisSelection = svgElement
+			.append('g')
+			.style('font-family', 'xkcd-script')
+			.style('font-size', '0.7rem')
+			.attr('transform', `translate(0,${innerHeight})`)
+			.call(d3.axisBottom(x));
+
+		axisSelection
+			.selectAll('text')
+			.style('text-anchor', 'start')
+			.attr('dx', '.8em')
+			.attr('dy', '-0.15em')
+			.style('transform', 'rotate(45deg)');
+
+		axisSelection.selectAll('line').attr('stroke', 'transparent');
+
+		svgElement
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', innerWidth / 2)
+			.attr('y', innerHeight + 70)
+			.attr('text-anchor', 'middle')
+			.style('font-size', '1.5rem')
+			.text(plotMetadata[selectedPlot].xLabel || 'X Axis');
+
+		// Y Axis (wobbly)
+		svgElement
+			.append('path')
+			.attr('d', wobbleLine(0, innerHeight, 0, 0))
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+
+		svgElement
+			.append('g')
+			.style('font-family', 'xkcd-script')
+			.style('font-size', '0.6rem')
+			.call(d3.axisLeft(y))
+			.selectAll('line')
+			.attr('stroke', 'transparent');
+
+		svgElement
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', -innerHeight / 2)
+			.attr('y', -270)
+			.attr('dy', '1em')
+			.attr('text-anchor', 'middle')
+			.attr('transform', 'rotate(-90)')
+			.style('font-size', '1.5rem')
+			.text(plotMetadata[selectedPlot].yLabel || 'Y Axis');
+
+		// Create heatmap cells
+		svgElement
+			.selectAll()
+			.data(data)
+			.enter()
+			.append('rect')
+			.attr('x', (d) => x(d.x) || 0)
+			.attr('y', (d) => y(d.y) || 0)
+			.attr('width', x.bandwidth())
+			.attr('height', y.bandwidth())
+			.style('fill', (d) => colorScale(d.z))
+			.style('stroke', 'white')
+			.style('stroke-width', 0.5);
+
+		// Tooltip
+		const tooltip = d3
+			.select('#right')
+			.append('div')
+			.style('position', 'absolute')
+			.style('font-family', 'xkcd-script')
+			.style('background', '#f0f0f0')
+			.style('padding', '8px')
+			.style('border-radius', '5px')
+			.style('box-shadow', '0 0 10px rgba(0, 0, 0, 0.2)')
+			.style('display', 'flex')
+			.style('flex-direction', 'column')
+			.style('transform', 'translateX(-50%) translateY(-100%)')
+			.style('opacity', 0)
+			.style('pointer-events', 'none')
+			.style('transition', 'opacity 0.4s ease-in-out')
+			.attr('class', 'my-tooltip');
+		const rightDiv = document.getElementById('right')!;
+
+		// Add hover effect and tooltip
+		svgElement
+			.selectAll('rect')
+			.on('mouseover', function (event, d: any) {
+				d3.select(this).style('stroke', 'black').style('stroke-width', 1);
+				const offsetTop = rightDiv.offsetTop + window.scrollY;
+				const offsetLeft = rightDiv.offsetLeft;
+
+				// set hovered project
+				// hoveredProject = d.y; // this is too dizzying
+
+				tooltip
+					.style('opacity', 1)
+					.html(`X: ${d.x}<br>Y: ${d.y}<br>Value: ${d.z.toFixed(0)}`)
+					.style('top', `${event.pageY - offsetTop - 10}px`)
+					.style('left', `${event.pageX - offsetLeft + 10}px`);
+			})
+			.on('mouseout', function () {
+				d3.select(this).style('stroke', 'white').style('stroke-width', 0.5);
+
+				tooltip.style('opacity', 0);
+				// hoveredProject = '';
+			})
+			.on('click', function (_, d: any) {
+				// set hovered project
+				hoveredProject = d.y;
+				setTimeout(() => {
+					hoveredProject = '';
+				}, 1500);
+			});
+
+		// Add a color legend
+		const legendWidth = 20;
+		const legendHeight = innerHeight;
+		const legendPosition = { x: innerWidth + margin.right / 2, y: margin.top };
+
+		const legendScale = d3.scaleLinear().range([legendHeight, 0]).domain(colorScale.domain());
+
+		const legendAxis = d3.axisRight(legendScale).tickSize(legendWidth).ticks(5);
+
+		const legend = svgElement
+			.append('g')
+			.attr('transform', `translate(${legendPosition.x}, ${legendPosition.y})`);
+
+		legend
+			.selectAll('rect')
+			.data(d3.range(legendHeight))
+			.enter()
+			.append('rect')
+			.attr('x', 0)
+			.attr('y', (d, i) => i)
+			.attr('width', legendWidth)
+			.attr('height', 1)
+			.style('fill', (d) => colorScale(legendScale.invert(d)));
+
+		legend.call(legendAxis).style('font-family', 'xkcd-script').style('font-size', '0.8rem');
+
+		legend
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', legendWidth / 2)
+			.attr('y', -10)
+			.attr('text-anchor', 'middle')
+			.style('font-size', '1rem')
+			.text('Value');
 	}
 
 	function handleScroll(event: any) {
@@ -364,11 +588,15 @@
 	<div bind:this={container} class="flex h-full w-full items-center justify-center">
 		<svg bind:this={svg} />
 	</div>
-	<!-- Slider for overriding IQRFactor -->
-	<div class="items-top ml-[30%] flex w-full justify-start" on:wheel={handleScroll}>
-		<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
-		<Slider bind:value={IQRFactor} min={5} max={100} step={5} class="w-96" />
-		<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers &nbsp; (scroll)</label>
-	</div>
-	<span class="ml-3 mt-3 inline w-full text-center">Inter Quartile Range factor : {IQRFactor}</span>
+	{#if plotType !== 'heatmap'}
+		<!-- Slider for overriding IQRFactor -->
+		<div class="items-top ml-[30%] flex w-full justify-start" on:wheel={handleScroll}>
+			<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
+			<Slider bind:value={IQRFactor} min={5} max={100} step={5} class="w-96" />
+			<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers &nbsp; (scroll)</label>
+		</div>
+		<span class="ml-3 mt-3 inline w-full text-center"
+			>Inter Quartile Range factor : {IQRFactor}</span
+		>
+	{/if}
 </div>

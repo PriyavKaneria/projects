@@ -195,6 +195,27 @@ const plotGenerators: PlotGenerator[] = [
 		IQRFactor: 20
 	},
 	{
+		key: 'File Type Complexity',
+		type: 'heatmap',
+		globalGenerator: (locAnalysis) => {
+			const projectData: PlotDataType[] = [];
+			for (const projectName in locAnalysis) {
+				const locData = locAnalysis[projectName];
+				for (const fileType in locData.language_distribution) {
+					projectData.push({
+						x: fileType.replace('.', '').slice(0, 4),
+						y: projectName,
+						z: locData.language_distribution[fileType]
+					});
+				}
+			}
+			return projectData;
+		},
+		xLabel: 'language',
+		yLabel: 'project',
+		IQRFactor: 1.5
+	},
+	{
 		key: 'Project Lifecycle Heatmap',
 		type: 'heatmap',
 		generate: (locData) => [

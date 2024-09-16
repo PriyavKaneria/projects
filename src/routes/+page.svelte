@@ -141,6 +141,8 @@
 		mouseXPosition = event.clientX;
 		timelineElement.style.transform = `translateX(-${timelineTranslateX + dragStartX - event.clientX}px)`;
 	};
+
+	$: selectedPlot && (zoomBind[0] = 0);
 </script>
 
 <div class="flex flex-col">
@@ -231,6 +233,8 @@
 					timelineTranslateX += dragStartX - mouseXPosition;
 				}}
 				on:mousemove={handleDrag}
+				on:mouseout={() => (dragging = false)}
+				on:blur={() => (dragging = false)}
 				aria-hidden={selectedPlot !== 'Timeline'}
 				class="mt-4 h-full cursor-pointer overflow-x-hidden"
 			>
