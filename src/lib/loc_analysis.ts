@@ -103,6 +103,12 @@ export interface PiePlotData {
 	value: number;
 }
 
+export interface LorentzPlotData {
+	x: number;
+	y: number;
+	z: number;
+}
+
 export interface HeatmapPlotData {
 	x: string;
 	y: string;
@@ -114,6 +120,7 @@ export type PlotDataType =
 	| BarPlotData
 	| LinePlotData
 	| PiePlotData
+	| LorentzPlotData
 	| HeatmapPlotData;
 
 type ProjectPlottingData = Record<
@@ -133,6 +140,7 @@ interface PlotGenerator {
 	generate?: (locData: LocAnalysis) => PlotDataType[];
 	xLabel?: string;
 	yLabel?: string;
+	zLabel?: string;
 	IQRFactor?: number;
 	globalGenerator?: (locAnalysis: Record<string, LocAnalysis>) => PlotDataType[];
 }
@@ -155,6 +163,25 @@ const plotGenerators: PlotGenerator[] = [
 		IQRFactor: 5
 	},
 	{
+		key: 'Commit Butterfly Effect',
+		type: 'lorentz',
+		generate: (locData) => [
+			{
+				// commits
+				x: locData.contributions?.total_commits || 0,
+				// code churn
+				y:
+					(locData.contributions?.total_lines_changed.deletions || 0) /
+					(locData.total_lines_of_code || 1),
+				// comment ratio
+				z: (locData.total_comments / locData.total_lines_of_code) * 100 // percentage
+			}
+		],
+		xLabel: 'Commits',
+		yLabel: 'Code Churn',
+		zLabel: 'Comment Ratio'
+	},
+	{
 		key: 'Language Polyglot Index',
 		type: 'scatter',
 		generate: (locData) => [
@@ -168,34 +195,7 @@ const plotGenerators: PlotGenerator[] = [
 		IQRFactor: 25
 	},
 	{
-		key: 'Refactor Black Hole',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.contributions?.total_commits || 0,
-				y: locData.contributions?.total_lines_changed.deletions || 0
-				// size: locData.total_lines_of_code
-			}
-		],
-		xLabel: 'Total Commits',
-		yLabel: 'Total Lines Deleted',
-		IQRFactor: 25
-	},
-	{
-		key: 'Code Verbosity Spectrum',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.total_lines_of_code,
-				y: locData.total_comments
-			}
-		],
-		xLabel: 'Total Lines of Code',
-		yLabel: 'Total Comments',
-		IQRFactor: 20
-	},
-	{
-		key: 'File Type Complexity',
+		key: 'Language concentration',
 		type: 'heatmap',
 		globalGenerator: (locAnalysis) => {
 			const projectData: PlotDataType[] = [];
@@ -390,6 +390,7 @@ export const plotMetadata = Object.fromEntries(
 			type: generator.type,
 			xLabel: generator.xLabel,
 			yLabel: generator.yLabel,
+			zLabel: generator.zLabel,
 			IQRFactor: generator.IQRFactor
 		}
 	])

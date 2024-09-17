@@ -4,10 +4,12 @@
 		plotMetadata,
 		projectPlottingData,
 		type HeatmapPlotData,
+		type LorentzPlotData,
 		type PlotDataType,
 		type ScatterPlotData
 	} from '$lib/loc_analysis';
 	import { Slider } from '$lib/components/ui/slider';
+	import { beforeUpdate, onDestroy } from 'svelte';
 
 	export let selectedPlot: string;
 	export let hoveredProject: string;
@@ -20,6 +22,17 @@
 		data: PlotDataType[];
 	}[];
 	let IQRFactor = [1.5];
+
+	let d3Timers: d3.Timer[] = [];
+	let intervalId: any;
+
+	const resetTimersIntervals = (_: string) => {
+		d3Timers.forEach((timer) => timer.stop());
+		d3.timerFlush();
+		if (intervalId) clearInterval(intervalId);
+	};
+
+	$: resetTimersIntervals(selectedPlot);
 
 	const handlePlotChange = (selectedPlot: string) => {
 		plotType = plotMetadata[selectedPlot].type;
@@ -38,6 +51,7 @@
 		// redraw based on plot type
 		if (plotType === 'scatter') drawScatterPlot();
 		else if (plotType === 'heatmap') drawHeatmap();
+		else if (plotType === 'lorentz') drawLorentzPlot();
 	};
 
 	$: IQRFactor && handleRedraw();
@@ -573,6 +587,224 @@
 			.text('Value');
 	}
 
+	function drawLorentzPlot() {
+		// Clear previous SVG content
+		d3.select(svg).selectAll('*').remove();
+
+		// Get container dimensions
+		const width = container.clientWidth - 50;
+		const height = container.clientHeight - 50;
+		const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+
+		const svgElement = d3
+			.select(svg)
+			.attr('width', width)
+			.attr('height', height)
+			.append('g')
+			.attr('transform', `translate(${margin.left},${margin.top})`)
+			.style('font-family', 'xkcd-script');
+
+		const innerWidth = width - margin.left - margin.right;
+		const innerHeight = height - margin.top - margin.bottom;
+
+		// 3D projection
+		const projection = d3
+			.geoOrthographic()
+			.scale(Math.min(innerWidth, innerHeight) / 2.5)
+			.translate([innerWidth / 2, innerHeight / 2]);
+
+		// Path generator
+		const path = d3.geoPath().projection(projection);
+
+		// Create a group for the 3D plot
+		const plot3D = svgElement.append('g');
+
+		// Add a sphere for reference
+		plot3D
+			.append('path')
+			.datum({ type: 'Sphere' })
+			.attr('fill', 'none')
+			.attr('stroke', '#ccc')
+			.attr('d', path({ type: 'Sphere' }))
+			.attr('transform', 'translate(100, 0)');
+
+		// Add grid lines
+		const gridLines = d3.geoGraticule().step([15, 15]);
+		plot3D
+			.append('path')
+			.datum(gridLines)
+			.attr('class', 'sphere-grid')
+			.attr('fill', 'none')
+			.attr('stroke', '#ddd')
+			.attr('stroke-width', 0.5)
+			.attr('d', path)
+			.attr('transform', 'translate(100, 0)');
+
+		// Add axes
+		const axes = [
+			{ start: [0, 0], end: [90, 0], label: plotMetadata[selectedPlot].xLabel },
+			{ start: [0, 0], end: [0, 90], label: plotMetadata[selectedPlot].yLabel },
+			{ start: [0, 0], end: [-90, 0], label: plotMetadata[selectedPlot].zLabel }
+		];
+
+		axes.forEach((axis) => {
+			plot3D
+				.append('path')
+				.datum(axis)
+				.attr('class', 'sphere-axis')
+				.attr('fill', 'none')
+				.attr('stroke', '#000')
+				.attr('stroke-width', 2)
+				.attr('d', (d) => path({ type: 'LineString', coordinates: [d.start, d.end] }))
+				.attr('transform', 'translate(100, 0)');
+
+			const [labelX, labelY] = projection([axis.end[0], axis.end[1]])!;
+			plot3D
+				.append('text')
+				.attr('x', labelX)
+				.attr('y', labelY - 10)
+				.attr('dy', '0.35em')
+				.attr('text-anchor', 'middle')
+				.text(axis.label || '')
+				.attr('transform', 'translate(100, 0)');
+		});
+
+		// assign random color to each project using interpolateWarm
+		const colorScale = d3.scaleSequential(d3.interpolateWarm);
+		const colors = plotData.map((d, i) => colorScale(i / (plotData.length - 1)));
+
+		// legend with project names and corresponding colors
+		const legend = svgElement
+			.append('g')
+			.attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+		legend
+			.selectAll('rect')
+			.data(plotData)
+			.enter()
+			.append('rect')
+			.attr('x', -80)
+			.attr('y', (d, i) => i * 10)
+			.attr('width', 15)
+			.attr('height', 10)
+			.style('fill', (d, i) => colors[i]);
+
+		legend
+			.selectAll('text')
+			.data(plotData)
+			.enter()
+			.append('text')
+			.attr('x', -58)
+			.attr('y', (d, i) => i * 10 + 8)
+			.style('font-size', '0.7rem')
+			.text((d) => d.project)
+			.style('fill', (d, i) => colors[i]);
+
+		function animateProject(projectIndex: number) {
+			const projectData = plotData[projectIndex];
+			const lorentzData = projectData.data[0] as LorentzPlotData;
+
+			// scale sigma, rho and beta to proper ranges for good lorentz attractor
+			const sigma = 10;
+			const rho = 28;
+			const beta = 8 / 3;
+
+			// start point scales
+			const startPointXScale = d3.scaleLinear().domain([0, 500]).range([-2, 2]).clamp(true);
+			const startPointYScale = d3.scaleLinear().domain([0, 2]).range([-2, 2]).clamp(true);
+			const startPointZScale = d3.scaleLinear().domain([1, 10]).range([-2, 2]).clamp(true);
+
+			const data: [number, number][] = [];
+			const line = d3
+				.line()
+				.curve(d3.curveCardinal)
+				.x((d) => d[0])
+				.y((d) => d[1]);
+
+			const track = plot3D
+				.append('path')
+				.attr('class', 'track')
+				.attr('fill', 'none')
+				.attr('stroke', (d) => colors[projectIndex])
+				.attr('stroke-width', 1)
+				.attr('transform', 'translate(100, 0)');
+
+			const point = plot3D
+				.append('circle')
+				.attr('class', 'point')
+				.attr('r', 0.5)
+				.attr('fill', (d) => colors[projectIndex])
+				.attr('transform', 'translate(100, 0)');
+
+			let x = startPointXScale(lorentzData.x);
+			let y = startPointYScale(lorentzData.y);
+			let z = startPointZScale(lorentzData.z);
+			const t = 0.01;
+			const max_iter = 2000;
+
+			function lorentz() {
+				const dx = t * (sigma * (y - x));
+				const dy = t * (x * (rho - z) - y);
+				const dz = t * (x * y - beta * z);
+				x += dx;
+				y += dy;
+				z += dz;
+			}
+
+			function draw() {
+				// projection.rotate([(Date.now() / 50) % 360, -15]);
+				const [cx, cy] = projection([x * 2, y * 2])!;
+				data.push([cx, cy]);
+
+				if (data.length > max_iter) {
+					data.shift();
+				}
+
+				track.attr('d', line(data));
+				point
+					.attr('cx', cx)
+					.attr('cy', cy)
+					.attr('stroke-width', 0.5 + z * 0.1);
+			}
+
+			// Run the animation
+			const timer = d3.timer(() => {
+				lorentz();
+				draw();
+			});
+			d3Timers.push(timer);
+		}
+
+		// // Add gradient for track
+		// svgElement
+		// 	.append('linearGradient')
+		// 	.attr('id', 'line-gradient')
+		// 	.attr('gradientUnits', 'userSpaceOnUse')
+		// 	.attr('x1', '0%')
+		// 	.attr('y1', '0%')
+		// 	.attr('x2', '100%')
+		// 	.attr('y2', '100%')
+		// 	.selectAll('stop')
+		// 	.data([
+		// 		{ offset: '0%', color: '#b2182b' },
+		// 		{ offset: '100%', color: '#2166ac' }
+		// 	])
+		// 	.enter()
+		// 	.append('stop')
+		// 	.attr('offset', (d) => d.offset)
+		// 	.attr('stop-color', (d) => d.color);
+
+		// Start the animation for all projects
+		plotData.forEach((_, index) => animateProject(index));
+		intervalId = setInterval(() => {
+			d3Timers.forEach((timer) => timer.stop());
+			d3.timerFlush();
+			// Clear previous paths and points
+			plot3D.selectAll('.point, .track').remove();
+			plotData.forEach((_, index) => animateProject(index));
+		}, 20000);
+	}
+
 	function handleScroll(event: any) {
 		event.preventDefault();
 		// increment or decrement IQRFactor based on scroll direction
@@ -588,15 +820,15 @@
 	<div bind:this={container} class="flex h-full w-full items-center justify-center">
 		<svg bind:this={svg} />
 	</div>
-	{#if plotType !== 'heatmap'}
+	{#if plotType !== 'heatmap' && plotType !== 'lorentz'}
 		<!-- Slider for overriding IQRFactor -->
 		<div class="items-top ml-[30%] flex w-full justify-start" on:wheel={handleScroll}>
 			<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
 			<Slider bind:value={IQRFactor} min={5} max={100} step={5} class="w-96" />
 			<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers &nbsp; (scroll)</label>
 		</div>
-		<span class="ml-3 mt-3 inline w-full text-center"
-			>Inter Quartile Range factor : {IQRFactor}</span
-		>
+		<span class="ml-3 mt-3 inline w-full text-center">
+			Inter Quartile Range factor : {IQRFactor}
+		</span>
 	{/if}
 </div>
