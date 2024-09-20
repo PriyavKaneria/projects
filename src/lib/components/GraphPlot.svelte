@@ -1,15 +1,16 @@
 <script lang="ts">
 	import * as d3 from 'd3';
+	import { hexbin } from 'd3-hexbin';
 	import {
 		plotMetadata,
 		projectPlottingData,
+		type DensityPlotData,
 		type HeatmapPlotData,
 		type LorentzPlotData,
 		type PlotDataType,
 		type ScatterPlotData
 	} from '$lib/loc_analysis';
 	import { Slider } from '$lib/components/ui/slider';
-	import { beforeUpdate, onDestroy } from 'svelte';
 
 	export let selectedPlot: string;
 	export let hoveredProject: string;
@@ -22,6 +23,13 @@
 		data: PlotDataType[];
 	}[];
 	let IQRFactor = [1.5];
+	$: maxIQRFactor = 100;
+	$: minIQRFactor = 5;
+	$: IQRFactorStep = 5;
+	let plotInfo: {
+		display: string;
+		description: string;
+	};
 
 	let d3Timers: d3.Timer[] = [];
 	let intervalId: any;
@@ -42,6 +50,15 @@
 		}));
 		const recommendedIQRFactor = plotMetadata[selectedPlot].IQRFactor || 1.5;
 		IQRFactor = [recommendedIQRFactor];
+		plotInfo = plotMetadata[selectedPlot].plotInfo || {
+			display: 'none',
+			description: 'none'
+		};
+		if (plotType === 'density') {
+			maxIQRFactor = 25;
+			minIQRFactor = 1;
+			IQRFactorStep = 1;
+		}
 	};
 	$: container && handlePlotChange(selectedPlot);
 
@@ -52,6 +69,7 @@
 		if (plotType === 'scatter') drawScatterPlot();
 		else if (plotType === 'heatmap') drawHeatmap();
 		else if (plotType === 'lorentz') drawLorentzPlot();
+		else if (plotType === 'density') drawDensityPlot();
 	};
 
 	$: IQRFactor && handleRedraw();
@@ -775,25 +793,6 @@
 			d3Timers.push(timer);
 		}
 
-		// // Add gradient for track
-		// svgElement
-		// 	.append('linearGradient')
-		// 	.attr('id', 'line-gradient')
-		// 	.attr('gradientUnits', 'userSpaceOnUse')
-		// 	.attr('x1', '0%')
-		// 	.attr('y1', '0%')
-		// 	.attr('x2', '100%')
-		// 	.attr('y2', '100%')
-		// 	.selectAll('stop')
-		// 	.data([
-		// 		{ offset: '0%', color: '#b2182b' },
-		// 		{ offset: '100%', color: '#2166ac' }
-		// 	])
-		// 	.enter()
-		// 	.append('stop')
-		// 	.attr('offset', (d) => d.offset)
-		// 	.attr('stop-color', (d) => d.color);
-
 		// Start the animation for all projects
 		plotData.forEach((_, index) => animateProject(index));
 		intervalId = setInterval(() => {
@@ -803,6 +802,185 @@
 			plot3D.selectAll('.point, .track').remove();
 			plotData.forEach((_, index) => animateProject(index));
 		}, 20000);
+	}
+
+	function drawDensityPlot() {
+		// Clear previous SVG content
+		d3.select(svg).selectAll('*').remove();
+
+		// Get container dimensions
+		const width = container.clientWidth - 50;
+		const height = container.clientHeight - 50;
+		const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+
+		const innerWidth = width - margin.left - margin.right;
+		const innerHeight = height - margin.top - margin.bottom;
+
+		// Prepare data
+		const densityData = plotData.flatMap((projectData) =>
+			projectData.data.map((d: any) => ({
+				x: d.x, // project age
+				y: d.y, // total commits
+				project: projectData.project
+			}))
+		);
+
+		// Extrapolate the density data by generating more data points in a radius of every datapoint
+		const extrapolatedData: typeof densityData = [];
+		densityData.forEach((d) => {
+			for (let i = 0; i < 50; i++) {
+				const randomX = d.x + (Math.random() - 0.5) * 50;
+				const randomY = d.y + (Math.random() - 0.5) * 20;
+				extrapolatedData.push({ x: randomX, y: randomY, project: d.project });
+			}
+		});
+
+		// Remove outliers using IQRFactor
+		const statsX = calculateStats(extrapolatedData.map((d) => d.x));
+		const filteredDataX = filterOutliers(
+			extrapolatedData.map((d) => d.x),
+			statsX
+		);
+		const statsY = calculateStats(extrapolatedData.map((d) => d.y));
+		const filteredDataY = filterOutliers(
+			extrapolatedData.map((d) => d.y),
+			statsY
+		);
+
+		// Create scales
+		const xScale = d3
+			.scaleLinear()
+			.domain(d3.extent(filteredDataX, (d) => d) as [number, number])
+			.range([0, innerWidth]);
+
+		const yScale = d3
+			.scaleLinear()
+			.domain(d3.extent(filteredDataY, (d) => d) as [number, number])
+			.range([innerHeight, 0]);
+
+		// Create SVG
+		const svgElement = d3
+			.select(svg)
+			.attr('width', width)
+			.attr('height', height)
+			.append('g')
+			.attr('transform', `translate(${margin.left},${margin.top})`);
+
+		// Create hexbin generator
+		const hexbinGenerator = hexbin()
+			.radius(10)
+			.extent([
+				[0, 0],
+				[innerWidth, innerHeight]
+			]);
+
+		// Generate hexbin data
+		const bins = hexbinGenerator(extrapolatedData.map((d) => [xScale(d.x), yScale(d.y)]));
+
+		// Color scale
+		const colorScale = d3.scaleLinear(
+			[0, Number(d3.max(bins, (d: any) => d.length)) || 1],
+			['transparent', '#69b3a2']
+		);
+
+		const tooltip = d3
+			.select('#right')
+			.append('div')
+			.style('position', 'absolute')
+			.style('font-family', 'xkcd-script')
+			.style('background', '#f0f0f0')
+			.style('padding', '8px')
+			.style('border-radius', '5px')
+			.style('box-shadow', '0 0 10px rgba(0, 0, 0, 0.2)')
+			.style('display', 'flex')
+			.style('flex-direction', 'column')
+			.style('transform', 'translateX(-50%) translateY(-100%)')
+			.style('opacity', 0)
+			.style('pointer-events', 'none')
+			.style('transition', 'opacity 0.4s ease-in-out')
+			.attr('class', 'my-tooltip');
+		const rightDiv = document.getElementById('right')!;
+
+		// Draw hexbins
+		svgElement
+			.append('g')
+			.selectAll('path')
+			.data(bins)
+			.join('path')
+			.attr('d', hexbinGenerator.hexagon())
+			.attr('transform', (d) => `translate(${d.x},${d.y})`)
+			.attr('fill', (d) => colorScale(d.length))
+			.attr('stroke', '#000')
+			.attr('stroke-width', '0.1')
+			.on('mouseover', function (event, d: any) {
+				const offsetTop = rightDiv.offsetTop + window.scrollY;
+				const offsetLeft = rightDiv.offsetLeft;
+
+				tooltip
+					.style('opacity', 1)
+					.html(
+						`${plotMetadata[selectedPlot].xLabel}: ${d.x}<br>${plotMetadata[selectedPlot].yLabel}: ${d.y}`
+					)
+					.style('top', `${event.pageY - offsetTop - 10}px`)
+					.style('left', `${event.pageX - offsetLeft + 10}px`);
+			})
+			.on('mouseout', function () {
+				tooltip.style('opacity', 0);
+			});
+
+		// Add X axis
+		svgElement
+			.append('g')
+			.attr('transform', `translate(0,${innerHeight})`)
+			.call(d3.axisBottom(xScale))
+			.append('text')
+			.attr('x', innerWidth / 2)
+			.attr('y', 40)
+			.attr('fill', 'black')
+			.style('text-anchor', 'middle')
+			.text(`${plotMetadata[selectedPlot].xLabel}`);
+
+		// Add Y axis
+		svgElement
+			.append('g')
+			.call(d3.axisLeft(yScale))
+			.append('text')
+			.attr('transform', 'rotate(-90)')
+			.attr('y', -40)
+			.attr('x', -innerHeight / 2)
+			.attr('fill', 'black')
+			.style('text-anchor', 'middle')
+			.text(`${plotMetadata[selectedPlot].yLabel}`);
+
+		// Add color legend
+		const legendWidth = 20;
+		const legendHeight = 200;
+		const legend = svgElement
+			.append('g')
+			.attr('transform', `translate(${innerWidth + 20}, ${innerHeight - legendHeight})`);
+
+		const legendScale = d3.scaleLinear().domain(colorScale.domain()).range([legendHeight, 0]);
+
+		legend
+			.selectAll('rect')
+			.data(d3.range(legendHeight))
+			.join('rect')
+			.attr('y', (d) => d)
+			.attr('width', legendWidth)
+			.attr('height', 1)
+			.attr('fill', (d) => colorScale(legendScale.invert(d)));
+
+		legend
+			.call(d3.axisRight(legendScale).tickSize(legendWidth).ticks(5))
+			.select('.domain')
+			.remove();
+
+		legend
+			.append('text')
+			.attr('x', legendWidth / 2)
+			.attr('y', -10)
+			.style('text-anchor', 'middle')
+			.text('Project Count');
 	}
 
 	function handleScroll(event: any) {
@@ -817,6 +995,34 @@
 </script>
 
 <div class="flex h-full w-full flex-col items-center justify-center">
+	{#if plotMetadata[selectedPlot]?.plotInfo?.display !== undefined && plotMetadata[selectedPlot]?.plotInfo?.display !== 'none'}
+		<div class="group relative mr-16 mt-16 flex items-center self-end">
+			<span class="mr-2 text-lg font-normal">
+				{plotMetadata[selectedPlot]?.plotInfo?.display}
+			</span>
+			<div class="relative">
+				<svg
+					class="h-5 w-5 cursor-help text-gray-500"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					xmlns="http://www.w3.org/2000/svg"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+					></path>
+				</svg>
+				<div
+					class="invisible absolute right-0 w-64 rounded bg-gray-800 p-2 text-sm text-white opacity-0 shadow-lg transition-opacity duration-300 group-hover:visible group-hover:opacity-100"
+				>
+					{plotMetadata[selectedPlot]?.plotInfo?.description}
+				</div>
+			</div>
+		</div>
+	{/if}
 	<div bind:this={container} class="flex h-full w-full items-center justify-center">
 		<svg bind:this={svg} />
 	</div>
@@ -824,7 +1030,13 @@
 		<!-- Slider for overriding IQRFactor -->
 		<div class="items-top ml-[30%] flex w-full justify-start" on:wheel={handleScroll}>
 			<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
-			<Slider bind:value={IQRFactor} min={5} max={100} step={5} class="w-96" />
+			<Slider
+				bind:value={IQRFactor}
+				min={minIQRFactor}
+				max={maxIQRFactor}
+				step={IQRFactorStep}
+				class="w-96"
+			/>
 			<label for="IQRFactor" class="mx-4 text-lg"> Keep outliers &nbsp; (scroll)</label>
 		</div>
 		<span class="ml-3 mt-3 inline w-full text-center">

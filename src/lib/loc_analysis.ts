@@ -115,13 +115,24 @@ export interface HeatmapPlotData {
 	z: number;
 }
 
+export interface DensityPlotData {
+	x: number;
+	y: number;
+}
+
+export interface PolarPlotData {
+	x: number;
+}
+
 export type PlotDataType =
 	| ScatterPlotData
 	| BarPlotData
 	| LinePlotData
 	| PiePlotData
 	| LorentzPlotData
-	| HeatmapPlotData;
+	| DensityPlotData
+	| HeatmapPlotData
+	| PolarPlotData;
 
 type ProjectPlottingData = Record<
 	string, // project name
@@ -143,6 +154,10 @@ interface PlotGenerator {
 	zLabel?: string;
 	IQRFactor?: number;
 	globalGenerator?: (locAnalysis: Record<string, LocAnalysis>) => PlotDataType[];
+	plotInfo?: {
+		display: string;
+		description: string;
+	};
 }
 
 const plotGenerators: PlotGenerator[] = [
@@ -179,7 +194,12 @@ const plotGenerators: PlotGenerator[] = [
 		],
 		xLabel: 'Commits',
 		yLabel: 'Code Churn',
-		zLabel: 'Comment Ratio'
+		zLabel: 'Comment Ratio',
+		plotInfo: {
+			display: 'Lorentz Attractor',
+			description:
+				'The Lorentz Attractor is a set of chaotic solutions to a system of ordinary differential equations.'
+		}
 	},
 	{
 		key: 'Language Polyglot Index',
@@ -213,36 +233,15 @@ const plotGenerators: PlotGenerator[] = [
 		},
 		xLabel: 'language',
 		yLabel: 'project',
-		IQRFactor: 1.5
-	},
-	{
-		key: 'Project Lifecycle Heatmap',
-		type: 'heatmap',
-		generate: (locData) => [
-			{
-				x: locData.contributions?.first_commit_date || '',
-				y: locData.contributions?.last_commit_date || '',
-				z: locData.total_lines_of_code
-			}
-		],
-		xLabel: 'First Commit Date',
-		yLabel: 'Last Commit Date'
-	},
-	{
-		key: 'Blank Space Odyssey',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.total_lines,
-				y: locData.total_blanks
-			}
-		],
-		xLabel: 'Total Lines',
-		yLabel: 'Total Blanks'
+		IQRFactor: 1.5,
+		plotInfo: {
+			display: 'Heatmap',
+			description: 'Concentration of code in different languages across projects.'
+		}
 	},
 	{
 		key: 'Commit Time Warp',
-		type: 'scatter',
+		type: 'density',
 		generate: (locData) => {
 			const firstCommit = new Date(locData.contributions?.first_commit_date || '');
 			const lastCommit = new Date(locData.contributions?.last_commit_date || '');
@@ -255,7 +254,12 @@ const plotGenerators: PlotGenerator[] = [
 			];
 		},
 		xLabel: 'Project Age (days)',
-		yLabel: 'Total Commits'
+		yLabel: 'Total Commits',
+		IQRFactor: 2,
+		plotInfo: {
+			display: 'Density Plot using Hexbins',
+			description: 'Extra data points were calculated for density spread viz'
+		}
 	},
 	{
 		key: 'Motivation curve',
@@ -293,24 +297,11 @@ const plotGenerators: PlotGenerator[] = [
 		yLabel: 'Percentage of Code'
 	},
 	{
-		key: 'Code Churn Tornado',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.contributions?.total_lines_changed.additions || 0,
-				y: locData.contributions?.total_lines_changed.deletions || 0
-			}
-		],
-		xLabel: 'Total Lines Added',
-		yLabel: 'Total Lines Deleted'
-	},
-	{
 		key: 'Star Constellation',
-		type: 'scatter',
+		type: 'polar',
 		generate: (locData) => [
 			{
-				x: locData.total_lines_of_code,
-				y: locData.stars || 0
+				x: locData.stars || 0
 			}
 		],
 		xLabel: 'Total Lines of Code',
@@ -391,7 +382,8 @@ export const plotMetadata = Object.fromEntries(
 			xLabel: generator.xLabel,
 			yLabel: generator.yLabel,
 			zLabel: generator.zLabel,
-			IQRFactor: generator.IQRFactor
+			IQRFactor: generator.IQRFactor,
+			plotInfo: generator.plotInfo
 		}
 	])
 );
