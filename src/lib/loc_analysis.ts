@@ -89,7 +89,7 @@ export interface ScatterPlotData {
 }
 
 export interface BarPlotData {
-	x: string;
+	x: number;
 	y: number;
 }
 
@@ -266,23 +266,39 @@ const plotGenerators: PlotGenerator[] = [
 		type: 'bar',
 		globalGenerator: (locAnalysis) => {
 			// number of projects for n weeks since first commit
-			const projectAgeCounts: Record<number, number> = {};
+			const projectAgeCounts: Record<string, number> = {};
 			for (const key in locAnalysis) {
 				const locData = locAnalysis[key];
 				const firstCommit = new Date(locData.contributions?.first_commit_date || '');
 				const lastCommit = new Date(locData.contributions?.last_commit_date || '');
 				const projectAge = (lastCommit.getTime() - firstCommit.getTime()) / (1000 * 60 * 60 * 24); // in days
+
 				const weeks = Math.floor(projectAge / 7);
-				projectAgeCounts[weeks] = (projectAgeCounts[weeks] || 0) + 1;
+				// make buckets of 4 weeks with all above 1 year in one bucket
+				const bucket =
+					weeks > 52
+						? '>1 year'
+						: weeks < 4
+							? `${weeks} - ${weeks + 1}`
+							: `${Math.floor(weeks / 4) * 4} - ${Math.floor(weeks / 4) * 4 + 3}`;
+				projectAgeCounts[bucket] = (projectAgeCounts[bucket] || 0) + 1;
 			}
 
-			return Object.entries(projectAgeCounts).map(([weeks, count]) => ({
-				x: weeks,
-				y: count
-			}));
+			return Object.entries(projectAgeCounts)
+				.map(([bucket, count]) => ({
+					x: bucket,
+					y: count
+				}))
+				.toSorted((a, b) => {
+					if (a.x === '>1 year') return 1;
+					if (b.x === '>1 year') return -1;
+					const aWeeks = parseInt(a.x.split(' - ')[0]);
+					const bWeeks = parseInt(b.x.split(' - ')[0]);
+					return aWeeks - bWeeks;
+				});
 		},
-		xLabel: 'Language',
-		yLabel: 'Percentage of Code'
+		xLabel: 'Weeks',
+		yLabel: 'Number of projects'
 	},
 	{
 		key: 'Language Loyalty Chart',

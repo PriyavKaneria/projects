@@ -12,7 +12,7 @@
 	import 'd3-milestones/build/d3-milestones.css';
 	import Slider from '$lib/components/ui/slider/slider.svelte';
 
-	let selectedPlotIndex = 0;
+	let selectedPlotIndex = 6;
 	$: selectedPlot = plotNames[selectedPlotIndex];
 
 	$: tabList = undefined as HTMLDivElement | undefined;
@@ -262,7 +262,9 @@
 					<label for="zoom" class="mx-4 text-lg"> Zoom In &nbsp; (scroll) </label>
 				</div>
 				{#if selectedPlot !== 'Timeline'}
-					<GraphPlot {selectedPlot} bind:hoveredProject></GraphPlot>
+					<div class="h-full w-full">
+						<GraphPlot {selectedPlot} bind:hoveredProject></GraphPlot>
+					</div>
 				{/if}
 			</div>
 		</div>

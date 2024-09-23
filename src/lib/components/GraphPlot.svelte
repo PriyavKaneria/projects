@@ -4,6 +4,7 @@
 	import {
 		plotMetadata,
 		projectPlottingData,
+		type BarPlotData,
 		type DensityPlotData,
 		type HeatmapPlotData,
 		type LorentzPlotData,
@@ -11,12 +12,13 @@
 		type ScatterPlotData
 	} from '$lib/loc_analysis';
 	import { Slider } from '$lib/components/ui/slider';
+	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 
 	export let selectedPlot: string;
 	export let hoveredProject: string;
 
 	let svg: SVGSVGElement;
-	let container: HTMLDivElement;
 	let plotType: string;
 	let plotData: {
 		project: string;
@@ -30,6 +32,8 @@
 		display: string;
 		description: string;
 	};
+	$: containerWidth = 0;
+	$: containerHeight = 0;
 
 	let d3Timers: d3.Timer[] = [];
 	let intervalId: any;
@@ -41,6 +45,8 @@
 	};
 
 	$: resetTimersIntervals(selectedPlot);
+
+	$: console.log(containerWidth, containerHeight);
 
 	const handlePlotChange = (selectedPlot: string) => {
 		plotType = plotMetadata[selectedPlot].type;
@@ -59,17 +65,21 @@
 			minIQRFactor = 1;
 			IQRFactorStep = 1;
 		}
+		handleRedraw();
 	};
-	$: container && handlePlotChange(selectedPlot);
+	$: handlePlotChange(selectedPlot);
 
 	const handleRedraw = () => {
 		// hide tooltip on redraw
-		d3.select('#right').selectAll('.my-tooltip').remove();
-		// redraw based on plot type
-		if (plotType === 'scatter') drawScatterPlot();
-		else if (plotType === 'heatmap') drawHeatmap();
-		else if (plotType === 'lorentz') drawLorentzPlot();
-		else if (plotType === 'density') drawDensityPlot();
+		if (browser) {
+			d3.select('#right').selectAll('.my-tooltip').remove();
+			// redraw based on plot type
+			if (plotType === 'scatter') drawScatterPlot();
+			else if (plotType === 'heatmap') drawHeatmap();
+			else if (plotType === 'lorentz') drawLorentzPlot();
+			else if (plotType === 'density') drawDensityPlot();
+			else if (plotType === 'bar') drawBarPlot();
+		}
 	};
 
 	$: IQRFactor && handleRedraw();
@@ -113,8 +123,8 @@
 		const sizeScale = d3.scaleLinear().domain(sizeExtent).range([2, 10]);
 
 		// Get container dimensions
-		const width = container.clientWidth - 50;
-		const height = container.clientHeight - 50;
+		const width = containerWidth - 50;
+		const height = containerHeight;
 		const margin = { top: 20, right: 20, bottom: 100, left: 100 };
 
 		// Clear previous SVG content
@@ -400,9 +410,9 @@
 		d3.select(svg).selectAll('*').remove();
 
 		// Get container dimensions
-		const width = container.clientWidth - 50;
-		const height = container.clientHeight;
-		const margin = { top: 20, right: 200, bottom: 100, left: 300 };
+		const width = containerWidth - 50;
+		const height = containerHeight + 100;
+		const margin = { top: 0, right: 200, bottom: 100, left: 300 };
 
 		const svgElement = d3
 			.select(svg)
@@ -610,9 +620,9 @@
 		d3.select(svg).selectAll('*').remove();
 
 		// Get container dimensions
-		const width = container.clientWidth - 50;
-		const height = container.clientHeight - 50;
-		const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+		const width = containerWidth - 50;
+		const height = containerHeight - 10;
+		const margin = { top: 0, right: 20, bottom: 20, left: 50 };
 
 		const svgElement = d3
 			.select(svg)
@@ -771,6 +781,9 @@
 
 			function draw() {
 				// projection.rotate([(Date.now() / 50) % 360, -15]);
+				if (isNaN(x) || isNaN(y)) {
+					return;
+				}
 				const [cx, cy] = projection([x * 2, y * 2])!;
 				data.push([cx, cy]);
 
@@ -795,13 +808,15 @@
 
 		// Start the animation for all projects
 		plotData.forEach((_, index) => animateProject(index));
-		intervalId = setInterval(() => {
-			d3Timers.forEach((timer) => timer.stop());
-			d3.timerFlush();
-			// Clear previous paths and points
-			plot3D.selectAll('.point, .track').remove();
-			plotData.forEach((_, index) => animateProject(index));
-		}, 20000);
+		if (!intervalId) {
+			intervalId = setInterval(() => {
+				d3Timers.forEach((timer) => timer.stop());
+				d3.timerFlush();
+				// Clear previous paths and points
+				plot3D.selectAll('.point, .track').remove();
+				plotData.forEach((_, index) => animateProject(index));
+			}, 20000);
+		}
 	}
 
 	function drawDensityPlot() {
@@ -809,9 +824,9 @@
 		d3.select(svg).selectAll('*').remove();
 
 		// Get container dimensions
-		const width = container.clientWidth - 50;
-		const height = container.clientHeight - 50;
-		const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+		const width = containerWidth - 50;
+		const height = containerHeight - 50;
+		const margin = { top: 20, right: 100, bottom: 100, left: 100 };
 
 		const innerWidth = width - margin.left - margin.right;
 		const innerHeight = height - margin.top - margin.bottom;
@@ -835,29 +850,6 @@
 			}
 		});
 
-		// Remove outliers using IQRFactor
-		const statsX = calculateStats(extrapolatedData.map((d) => d.x));
-		const filteredDataX = filterOutliers(
-			extrapolatedData.map((d) => d.x),
-			statsX
-		);
-		const statsY = calculateStats(extrapolatedData.map((d) => d.y));
-		const filteredDataY = filterOutliers(
-			extrapolatedData.map((d) => d.y),
-			statsY
-		);
-
-		// Create scales
-		const xScale = d3
-			.scaleLinear()
-			.domain(d3.extent(filteredDataX, (d) => d) as [number, number])
-			.range([0, innerWidth]);
-
-		const yScale = d3
-			.scaleLinear()
-			.domain(d3.extent(filteredDataY, (d) => d) as [number, number])
-			.range([innerHeight, 0]);
-
 		// Create SVG
 		const svgElement = d3
 			.select(svg)
@@ -865,6 +857,93 @@
 			.attr('height', height)
 			.append('g')
 			.attr('transform', `translate(${margin.left},${margin.top})`);
+
+		// X and Y scales
+		// Calculate stats and filter outliers for x and y
+		const xValues = extrapolatedData.map((d) => d.x);
+		const yValues = extrapolatedData.map((d) => d.y);
+		const xStats = calculateStats(xValues);
+		const yStats = calculateStats(yValues);
+		const filteredX = filterOutliers(xValues, xStats);
+		const filteredY = filterOutliers(yValues, yStats);
+
+		// Create scales after filtering outliers
+		const xScale = d3
+			.scaleLinear()
+			.domain(d3.extent(filteredX, (d) => d) as [number, number])
+			.range([0, innerWidth]);
+
+		const yScale = d3
+			.scaleLinear()
+			.domain(d3.extent(filteredY, (d) => d) as [number, number])
+			.range([innerHeight, 0]);
+
+		// Function to generate wobbly line
+		function wobbleLine(x1: number, y1: number, x2: number, y2: number) {
+			const segments = 10;
+			let d = `M${x1},${y1}`;
+			for (let i = 1; i <= segments; i++) {
+				const x = x1 + (x2 - x1) * (i / segments);
+				const y = y1 + (y2 - y1) * (i / segments);
+				const wobbleX = (Math.random() - 0.5) * 4;
+				const wobbleY = (Math.random() - 0.5) * 4;
+				d += `L${x + wobbleX},${y + wobbleY}`;
+			}
+			return d;
+		}
+
+		// X Axis (wobbly)
+		const xAxis = d3.axisBottom(xScale).tickFormat((d) => d.toString());
+		svgElement
+			.append('path')
+			.attr('d', wobbleLine(0, innerHeight, innerWidth, innerHeight))
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+
+		svgElement
+			.append('g')
+			.style('font-family', 'xkcd-script')
+			.style('font-size', '1rem')
+			.attr('transform', `translate(0,${innerHeight})`)
+			.call(xAxis)
+			.selectAll('line')
+			.attr('stroke', 'transparent');
+
+		svgElement
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', innerWidth / 2)
+			.attr('y', innerHeight + 70)
+			.attr('text-anchor', 'middle')
+			.style('font-size', '1.5rem')
+			.text(plotMetadata[selectedPlot].xLabel || 'X Axis');
+
+		// Y Axis (wobbly)
+		const yAxis = d3.axisLeft(yScale).tickFormat((d) => d.toString());
+		svgElement
+			.append('path')
+			.attr('d', wobbleLine(0, innerHeight, 0, 0))
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+
+		svgElement
+			.append('g')
+			.style('font-family', 'xkcd-script')
+			.style('font-size', '1rem')
+			.call(yAxis)
+			.selectAll('line')
+			.attr('stroke', 'transparent');
+
+		svgElement
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', -innerHeight / 2)
+			.attr('y', -70)
+			.attr('dy', '1em')
+			.attr('text-anchor', 'middle')
+			.attr('transform', 'rotate(-90)')
+			.style('font-size', '1.5rem')
+			.text(plotMetadata[selectedPlot].yLabel || 'Y Axis');
 
 		// Create hexbin generator
 		const hexbinGenerator = hexbin()
@@ -928,30 +1007,6 @@
 				tooltip.style('opacity', 0);
 			});
 
-		// Add X axis
-		svgElement
-			.append('g')
-			.attr('transform', `translate(0,${innerHeight})`)
-			.call(d3.axisBottom(xScale))
-			.append('text')
-			.attr('x', innerWidth / 2)
-			.attr('y', 40)
-			.attr('fill', 'black')
-			.style('text-anchor', 'middle')
-			.text(`${plotMetadata[selectedPlot].xLabel}`);
-
-		// Add Y axis
-		svgElement
-			.append('g')
-			.call(d3.axisLeft(yScale))
-			.append('text')
-			.attr('transform', 'rotate(-90)')
-			.attr('y', -40)
-			.attr('x', -innerHeight / 2)
-			.attr('fill', 'black')
-			.style('text-anchor', 'middle')
-			.text(`${plotMetadata[selectedPlot].yLabel}`);
-
 		// Add color legend
 		const legendWidth = 20;
 		const legendHeight = 200;
@@ -983,6 +1038,230 @@
 			.text('Project Count');
 	}
 
+	function drawBarPlot() {
+		// Clear previous SVG content
+		d3.select(svg).selectAll('*').remove();
+
+		// Get container dimensions
+		const width = containerWidth - 50;
+		const height = containerHeight - 50;
+		const margin = { top: 20, right: 20, bottom: 100, left: 100 };
+
+		const innerWidth = width - margin.left - margin.right;
+		const innerHeight = height - margin.top - margin.bottom;
+
+		const barData: (BarPlotData & {
+			index: number;
+		})[] = [];
+		plotData[0].data.map((d: any, index: number) => {
+			barData.push({ x: d.x, y: d.y, index: index });
+		});
+
+		// Create SVG
+		const svgElement = d3
+			.select(svg)
+			.attr('width', width)
+			.attr('height', height)
+			.append('g')
+			.attr('transform', `translate(${margin.left},${margin.top})`);
+
+		// Function to generate wobbly line
+		function wobbleLine(x1: number, y1: number, x2: number, y2: number) {
+			const segments = 10;
+			let d = `M${x1},${y1}`;
+			for (let i = 1; i <= segments; i++) {
+				const x = x1 + (x2 - x1) * (i / segments);
+				const y = y1 + (y2 - y1) * (i / segments);
+				const wobbleX = (Math.random() - 0.5) * 4;
+				const wobbleY = (Math.random() - 0.5) * 4;
+				d += `L${x + wobbleX},${y + wobbleY}`;
+			}
+			return d;
+		}
+
+		// Create scales
+		const xScale = d3
+			.scaleBand()
+			.domain(barData.map((d) => d.x.toString()))
+			.range([0, innerWidth])
+			.padding(0.1);
+
+		const yScale = d3
+			.scaleLinear()
+			.domain([0, d3.max(barData, (d) => d.y)!])
+			.range([innerHeight, 0]);
+
+		// X Axis (wobbly)
+		const xAxis = d3.axisBottom(xScale).tickFormat(
+			// convert to K and M for large numbers
+			(d) => d.toString()
+		);
+		svgElement
+			.append('path')
+			.attr('d', wobbleLine(0, innerHeight, innerWidth, innerHeight))
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+
+		const xAxisElement = svgElement
+			.append('g')
+			.style('font-family', 'xkcd-script')
+			.style('font-size', '0.8rem')
+			.attr('transform', `translate(0,${innerHeight})`)
+			.call(xAxis);
+
+		xAxisElement.selectAll('line').attr('stroke', 'transparent');
+		xAxisElement
+			.selectAll('text')
+			.style('text-anchor', 'start')
+			.attr('dx', '0em')
+			.attr('dy', '0.35em')
+			.style('transform', 'rotate(30deg)');
+
+		svgElement
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', innerWidth / 2)
+			.attr('y', innerHeight + 70)
+			.attr('text-anchor', 'middle')
+			.style('font-size', '1.5rem')
+			.text(plotMetadata[selectedPlot].xLabel || 'X Axis');
+
+		// Y Axis (wobbly)
+		const yAxis = d3.axisLeft(yScale).tickFormat(
+			// convert to K and M for large numbers
+			(d) => d.toString()
+		);
+		svgElement
+			.append('path')
+			.attr('d', wobbleLine(0, innerHeight, 0, 0))
+			.attr('stroke', 'black')
+			.attr('fill', 'none');
+
+		svgElement
+			.append('g')
+			.style('font-family', 'xkcd-script')
+			.style('font-size', '1rem')
+			.call(yAxis)
+			.selectAll('line')
+			.attr('stroke', 'transparent');
+
+		svgElement
+			.append('text')
+			.attr('fill', 'black')
+			.attr('x', -innerHeight / 2)
+			.attr('y', -70)
+			.attr('dy', '1em')
+			.attr('text-anchor', 'middle')
+			.attr('transform', 'rotate(-90)')
+			.style('font-size', '1.5rem')
+			.text(plotMetadata[selectedPlot].yLabel || 'Y Axis');
+
+		const colorScale = d3.scaleSequential(d3.interpolateCool).domain([0, barData.length]);
+
+		// Create diagonal pattern for each color
+		barData.forEach((d) => {
+			svgElement
+				.append('defs')
+				.append('pattern')
+				.attr('id', `diagonalHatch-${d.index}`)
+				.attr('patternUnits', 'userSpaceOnUse')
+				.attr('width', 6)
+				.attr('height', 6)
+				.append('path')
+				.attr('d', 'M-1,1 l2,-2 M0,6 l6,-6 M4,8 l2,-2')
+				.attr('stroke', colorScale(d.index))
+				.attr('stroke-width', 0.6);
+		});
+
+		// Create bars
+		svgElement
+			.selectAll('.bar')
+			.data(barData)
+			.enter()
+			.append('rect')
+			.attr('class', 'bar')
+			.attr('x', (d) => xScale(d.x.toString())!)
+			.attr('y', (d) => yScale(d.y))
+			.attr('width', xScale.bandwidth())
+			.attr('height', (d) => innerHeight - yScale(d.y))
+			.attr('fill', (d) => `url(#diagonalHatch-${d.index})`)
+			.attr('stroke', 'steelblue')
+			.attr('stroke-width', 1);
+
+		// Create a line generator
+		const line = d3
+			.line<BarPlotData & { index: number }>()
+			.x((d) => xScale(d.x.toString())! + xScale.bandwidth() / 2)
+			.y((d) => yScale(d.y))
+			.curve(d3.curveCatmullRom.alpha(1));
+
+		// Create gradient
+		const gradient = svgElement
+			.append('defs')
+			.append('linearGradient')
+			.attr('id', 'line-gradient')
+			.attr('gradientUnits', 'userSpaceOnUse')
+			.attr('x1', 0)
+			.attr('y1', 0)
+			.attr('x2', innerWidth)
+			.attr('y2', 0);
+
+		gradient
+			.selectAll('stop')
+			.data(barData)
+			.enter()
+			.append('stop')
+			.attr('offset', (d, i) => i / (barData.length - 1))
+			.attr('stop-color', (d, i) => colorScale(i));
+
+		// Add the curved line
+		svgElement
+			.append('path')
+			.datum(barData)
+			.attr('fill', 'none')
+			.attr('stroke', 'url(#line-gradient)')
+			.attr('stroke-width', 3)
+			.attr('d', line);
+
+		// Add tooltip
+		const tooltip = d3
+			.select('#right')
+			.append('div')
+			.style('position', 'absolute')
+			.style('font-family', 'xkcd-script')
+			.style('background', '#f0f0f0')
+			.style('padding', '8px')
+			.style('border-radius', '5px')
+			.style('box-shadow', '0 0 10px rgba(0, 0, 0, 0.2)')
+			.style('display', 'flex')
+			.style('flex-direction', 'column')
+			.style('transform', 'translateX(-50%) translateY(-100%)')
+			.style('opacity', 0)
+			.style('pointer-events', 'none')
+			.style('transition', 'opacity 0.4s ease-in-out')
+			.attr('class', 'my-tooltip');
+		const rightDiv = document.getElementById('right')!;
+
+		// Add hover effect and tooltip
+		svgElement
+			.selectAll('.bar')
+			.on('mouseover', function (event, d: any) {
+				const offsetTop = rightDiv.offsetTop + window.scrollY;
+				const offsetLeft = rightDiv.offsetLeft;
+
+				tooltip
+					.style('opacity', 1)
+					.html(
+						`${plotMetadata[selectedPlot].xLabel}: ${d.x}<br>${plotMetadata[selectedPlot].yLabel}: ${d.y}`
+					)
+					.style('top', `${event.pageY - offsetTop - 10}px`)
+					.style('left', `${event.pageX - offsetLeft + 10}px`);
+			})
+			.on('mouseout', function () {
+				tooltip.style('opacity', 0);
+			});
+	}
+
 	function handleScroll(event: any) {
 		event.preventDefault();
 		// increment or decrement IQRFactor based on scroll direction
@@ -992,9 +1271,19 @@
 			IQRFactor = [IQRFactor[0] - 5];
 		}
 	}
+
+	onMount(() => {
+		handlePlotChange(selectedPlot);
+	});
 </script>
 
-<div class="flex h-full w-full flex-col items-center justify-center">
+<div
+	class={`flex h-full w-full flex-col ${
+		['scatter', 'lorentz', 'bar'].includes(plotType)
+			? 'items-center justify-center'
+			: 'items-start justify-start'
+	}`}
+>
 	{#if plotMetadata[selectedPlot]?.plotInfo?.display !== undefined && plotMetadata[selectedPlot]?.plotInfo?.display !== 'none'}
 		<div class="group relative mr-16 mt-16 flex items-center self-end">
 			<span class="mr-2 text-lg font-normal">
@@ -1023,12 +1312,20 @@
 			</div>
 		</div>
 	{/if}
-	<div bind:this={container} class="flex h-full w-full items-center justify-center">
+	<div
+		bind:clientWidth={containerWidth}
+		bind:clientHeight={containerHeight}
+		class={`flex h-full max-h-[50vh] w-full ${
+			['scatter', 'lorentz', 'bar'].includes(plotType)
+				? 'items-center justify-center'
+				: 'items-start justify-start'
+		}`}
+	>
 		<svg bind:this={svg} />
 	</div>
-	{#if plotType !== 'heatmap' && plotType !== 'lorentz'}
+	{#if plotType !== 'heatmap' && plotType !== 'lorentz' && plotType !== 'bar'}
 		<!-- Slider for overriding IQRFactor -->
-		<div class="items-top ml-[30%] flex w-full justify-start" on:wheel={handleScroll}>
+		<div class="items-top ml-[15%] mt-10 flex w-full justify-start" on:wheel={handleScroll}>
 			<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
 			<Slider
 				bind:value={IQRFactor}
