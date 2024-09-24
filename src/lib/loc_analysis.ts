@@ -120,8 +120,8 @@ export interface DensityPlotData {
 	y: number;
 }
 
-export interface PolarPlotData {
-	x: number;
+export interface PackingPlotData {
+	value: number;
 }
 
 export type PlotDataType =
@@ -132,7 +132,7 @@ export type PlotDataType =
 	| LorentzPlotData
 	| DensityPlotData
 	| HeatmapPlotData
-	| PolarPlotData;
+	| PackingPlotData;
 
 type ProjectPlottingData = Record<
 	string, // project name
@@ -301,27 +301,14 @@ const plotGenerators: PlotGenerator[] = [
 		yLabel: 'Number of projects'
 	},
 	{
-		key: 'Language Loyalty Chart',
-		type: 'bar',
-		generate: (locData) => {
-			return Object.entries(locData.language_distribution).map(([language, lines]) => ({
-				x: language,
-				y: (lines / locData.total_lines_of_code) * 100 // percentage
-			}));
-		},
-		xLabel: 'Language',
-		yLabel: 'Percentage of Code'
-	},
-	{
 		key: 'Star Constellation',
-		type: 'polar',
+		type: 'packing',
 		generate: (locData) => [
 			{
-				x: locData.stars || 0
+				value: locData.stars || 0
 			}
 		],
-		xLabel: 'Total Lines of Code',
-		yLabel: 'Stars'
+		xLabel: 'Stars'
 	},
 	{
 		key: 'Topic Galaxy',

@@ -8,6 +8,7 @@
 		type DensityPlotData,
 		type HeatmapPlotData,
 		type LorentzPlotData,
+		type PackingPlotData,
 		type PlotDataType,
 		type ScatterPlotData
 	} from '$lib/loc_analysis';
@@ -79,6 +80,7 @@
 			else if (plotType === 'lorentz') drawLorentzPlot();
 			else if (plotType === 'density') drawDensityPlot();
 			else if (plotType === 'bar') drawBarPlot();
+			else if (plotType === 'packing') drawPackingPlot();
 		}
 	};
 
@@ -1262,6 +1264,164 @@
 			});
 	}
 
+	function drawPackingPlot() {
+		// Extract and sort data
+		let data: PackingPlotData[] = [];
+		plotData.forEach((projectData) => {
+			const projectDataArray = projectData.data as PackingPlotData[];
+			data = data.concat(
+				projectDataArray
+					.map((d) => ({
+						value: d.value,
+						project: projectData.project
+					}))
+					.filter((data) => data.value > 0)
+			);
+		});
+		data.sort((a, b) => a.value - b.value);
+
+		// Clear previous SVG content
+		d3.select(svg).selectAll('*').remove();
+
+		// Get container dimensions
+		const width = containerWidth - 50;
+		const height = containerHeight;
+
+		// Create SVG
+		const svgElement = d3
+			.select(svg)
+			.attr('width', width)
+			.attr('height', height)
+			.style('overflow', 'visible')
+			.append('g')
+			.attr('transform', `translate(${width / 2},${height / 2})`);
+
+		// Color palette
+		const color = d3.scaleSequential(d3.interpolatePurples).domain([-5, data.length]);
+
+		// Size scale
+		const size = d3
+			.scaleLinear()
+			.domain([0, d3.max(data, (d) => d.value)!])
+			.range([10, 100]);
+
+		// Add tooltip
+		const tooltip = d3
+			.select('#right')
+			.append('div')
+			.style('position', 'absolute')
+			.style('font-family', 'xkcd-script')
+			.style('background', '#f0f0f0')
+			.style('padding', '8px')
+			.style('border-radius', '5px')
+			.style('box-shadow', '0 0 10px rgba(0, 0, 0, 0.2)')
+			.style('display', 'flex')
+			.style('flex-direction', 'column')
+			.style('transform', 'translateX(-50%) translateY(-100%)')
+			.style('opacity', 0)
+			.style('pointer-events', 'none')
+			.style('transition', 'opacity 0.4s ease-in-out')
+			.attr('class', 'my-tooltip');
+		const rightDiv = document.getElementById('right')!;
+
+		// Three function that change the tooltip when user hover / move / leave a cell
+		const mouseover = function (event: any, d: any) {
+			tooltip.style('opacity', 1);
+		};
+		const mousemove = function (event: any, d: any) {
+			const offsetTop = rightDiv.offsetTop + window.scrollY;
+			const offsetLeft = rightDiv.offsetLeft;
+
+			tooltip
+				.style('opacity', 1)
+				.html(`project: ${d.project}<br>${plotMetadata[selectedPlot].xLabel}: ${d.value}`)
+				.style('top', `${event.pageY - offsetTop - 10}px`)
+				.style('left', `${event.pageX - offsetLeft + 10}px`);
+		};
+		const mouseleave = function (event: any, d: any) {
+			tooltip.style('opacity', 0);
+		};
+
+		// Initialize the circle: all located at the center of the svg area
+		const nodeGroup = svgElement.selectAll('g').data(data).join('g').attr('class', 'node-group');
+
+		nodeGroup
+			.append('circle')
+			.attr('class', 'node')
+			.attr('r', (d: any) => size(d.value))
+			.style('fill', (d: any) => color(d.value))
+			.style('fill-opacity', 0.8)
+			.attr('stroke', 'black')
+			.style('stroke-width', 1);
+
+		nodeGroup
+			.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dominant-baseline', 'central')
+			.style('font-size', (d: any) => `${Math.min(14, size(d.value) / 3)}px`)
+			.style('fill', 'black')
+			.text((d: any) => d.value);
+
+		const node = nodeGroup.select('circle');
+		const nodeText = nodeGroup.select('text');
+
+		node
+			.on('mouseover', mouseover) // What to do when hovered
+			.on('mousemove', mousemove)
+			.on('mouseleave', mouseleave)
+			.call(
+				d3
+					.drag<any, PackingPlotData>() // call specific function when circle is dragged
+					.on('start', dragstarted)
+					.on('drag', dragged)
+					.on('end', dragended)
+			);
+
+		// Features of the forces applied to the nodes:
+		const simulation = d3
+			.forceSimulation()
+			.force('center', d3.forceCenter().x(0).y(0)) // Attraction to the center of the svg area
+			.force('charge', d3.forceManyBody().strength(150)) // Nodes are attracted one each other of value is > 0
+			.force(
+				'collide',
+				d3
+					.forceCollide()
+					.strength(1)
+					.radius(function (d: any) {
+						return size(d.value) + 10;
+					})
+					.iterations(2)
+			); // Force that avoids circle overlapping
+
+		interface PackingPlotData extends d3.SimulationNodeDatum {
+			value: number;
+			project: string;
+		}
+
+		// Apply these forces to the nodes and update their positions.
+		// Once the force algorithm is happy with positions ('alpha' value is low enough), simulations will stop.
+		simulation.nodes(data).on('tick', function () {
+			node.attr('cx', (d) => d.x!).attr('cy', (d) => d.y!);
+			nodeText.attr('x', (d) => d.x!).attr('y', (d) => d.y!);
+		});
+
+		// What happens when a circle is dragged?
+		function dragstarted(event: any, d: any) {
+			if (!event.active) simulation.alphaTarget(0.03).restart();
+			d.fx = d.x;
+			d.fy = d.y;
+		}
+		function dragged(event: any, d: any) {
+			d.fx = event.x;
+			d.fy = event.y;
+		}
+		function dragended(event: any, d: any) {
+			if (!event.active) simulation.alphaTarget(0.03);
+			d.fx = null;
+			d.fy = null;
+		}
+	}
+
 	function handleScroll(event: any) {
 		event.preventDefault();
 		// increment or decrement IQRFactor based on scroll direction
@@ -1279,7 +1439,7 @@
 
 <div
 	class={`flex h-full w-full flex-col ${
-		['scatter', 'lorentz', 'bar'].includes(plotType)
+		['scatter', 'lorentz', 'bar', 'packing'].includes(plotType)
 			? 'items-center justify-center'
 			: 'items-start justify-start'
 	}`}
@@ -1316,14 +1476,14 @@
 		bind:clientWidth={containerWidth}
 		bind:clientHeight={containerHeight}
 		class={`flex h-full max-h-[50vh] w-full ${
-			['scatter', 'lorentz', 'bar'].includes(plotType)
+			['scatter', 'lorentz', 'bar', 'packing'].includes(plotType)
 				? 'items-center justify-center'
 				: 'items-start justify-start'
-		}`}
+		} ${plotType === 'packing' ? 'scale-125' : ''}`}
 	>
 		<svg bind:this={svg} />
 	</div>
-	{#if plotType !== 'heatmap' && plotType !== 'lorentz' && plotType !== 'bar'}
+	{#if plotType !== 'heatmap' && plotType !== 'lorentz' && plotType !== 'bar' && plotType !== 'packing'}
 		<!-- Slider for overriding IQRFactor -->
 		<div class="items-top ml-[15%] mt-10 flex w-full justify-start" on:wheel={handleScroll}>
 			<label for="IQRFactor" class="mx-4 text-lg"> Remove outliers </label>
