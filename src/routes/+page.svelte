@@ -192,7 +192,7 @@
 					<ChevronLeftIcon class=" h-6 w-6" />
 					<!-- fade out left -->
 					<div
-						class="absolute left-4 top-0 h-full w-10 bg-gradient-to-l from-transparent to-white"
+						class="pointer-events-none absolute left-4 top-0 h-full w-24 bg-gradient-to-l from-transparent to-white"
 					/>
 				</button>
 				<ScrollArea class="z-10 rounded-md">
@@ -213,7 +213,7 @@
 				>
 					<!-- fade out right -->
 					<div
-						class="absolute right-4 top-0 h-full w-10 bg-gradient-to-r from-transparent to-white"
+						class="pointer-events-none absolute right-4 top-0 h-full w-24 bg-gradient-to-r from-transparent to-white"
 					/>
 					<ChevronRightIcon class="h-6 w-6" />
 				</button>
@@ -246,11 +246,11 @@
 				>
 					<div id="timeline" class="relative my-auto h-full w-full overflow-x-hidden text-xs"></div>
 				</div>
-				<!-- left fade out -->
+				<!-- left fade out for timeline -->
 				<div
 					class={`absolute left-0 top-0 h-full w-28 bg-gradient-to-l from-transparent to-white ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
 				/>
-				<!-- right fade out -->
+				<!-- right fade out for timeline -->
 				<div
 					class={`absolute right-0 top-0 h-full w-28 bg-gradient-to-r from-transparent to-white ${selectedPlot === 'Timeline' ? '' : 'hidden'}`}
 				/>

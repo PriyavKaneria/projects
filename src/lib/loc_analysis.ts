@@ -309,68 +309,6 @@ const plotGenerators: PlotGenerator[] = [
 			}
 		],
 		xLabel: 'Stars'
-	},
-	{
-		key: 'Topic Galaxy',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.topics?.length || 0,
-				y: locData.total_files
-			}
-		],
-		xLabel: 'Number of Topics',
-		yLabel: 'Total Files'
-	},
-	{
-		key: 'Comment Density',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.total_lines_of_code,
-				y: (locData.total_comments / locData.total_lines_of_code) * 100 // percentage
-			}
-		],
-		xLabel: 'Total Lines of Code',
-		yLabel: 'Comment Density (%)'
-	},
-	{
-		key: 'Project Privacy vs Size',
-		type: 'scatter',
-		generate: (locData) => [
-			{
-				x: locData.total_lines_of_code,
-				y: locData.private ? 1 : 0 // 1 for private, 0 for public
-			}
-		],
-		xLabel: 'Total Lines of Code',
-		yLabel: 'Private Repository'
-	},
-	{
-		key: 'Commit Size Distribution',
-		type: 'bar',
-		generate: (locData) => {
-			const medianSize = locData.contributions?.median_commit_size || 0;
-			return [
-				{ x: 'Small', y: medianSize < 10 ? 1 : 0 },
-				{ x: 'Medium', y: medianSize >= 10 && medianSize < 100 ? 1 : 0 },
-				{ x: 'Large', y: medianSize >= 100 ? 1 : 0 }
-			];
-		},
-		xLabel: 'Commit Size',
-		yLabel: 'Number of Commits'
-	},
-	{
-		key: 'Language Diversity',
-		type: 'pie',
-		generate: (locData) => {
-			return Object.entries(locData.language_distribution).map(([language, lines]) => ({
-				label: language,
-				value: lines
-			}));
-		},
-		xLabel: 'Language',
-		yLabel: 'Lines of Code'
 	}
 ];
 

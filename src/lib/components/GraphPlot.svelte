@@ -47,8 +47,6 @@
 
 	$: resetTimersIntervals(selectedPlot);
 
-	$: console.log(containerWidth, containerHeight);
-
 	const handlePlotChange = (selectedPlot: string) => {
 		plotType = plotMetadata[selectedPlot].type;
 		plotData = Object.entries(projectPlottingData).map(([project, projectData]) => ({
@@ -1337,9 +1335,12 @@
 				.html(`project: ${d.project}<br>${plotMetadata[selectedPlot].xLabel}: ${d.value}`)
 				.style('top', `${event.pageY - offsetTop - 10}px`)
 				.style('left', `${event.pageX - offsetLeft + 10}px`);
+
+			hoveredProject = d.project;
 		};
 		const mouseleave = function (event: any, d: any) {
 			tooltip.style('opacity', 0);
+			hoveredProject = '';
 		};
 
 		// Initialize the circle: all located at the center of the svg area
