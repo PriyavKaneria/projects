@@ -12,7 +12,7 @@
 	import 'd3-milestones/build/d3-milestones.css';
 	import Slider from '$lib/components/ui/slider/slider.svelte';
 
-	let selectedPlotIndex = 6;
+	let selectedPlotIndex = 0;
 	$: selectedPlot = plotNames[selectedPlotIndex];
 
 	$: tabList = undefined as HTMLDivElement | undefined;
@@ -40,6 +40,13 @@
 	let timelineElement: HTMLDivElement;
 	let timelineTranslateX = 0;
 	onMount(() => {
+		// alert user if they are using a small screen
+		if (window.innerWidth < 1024) {
+			alert(
+				'You are seriously missing out on the website experience, I would recommend using a desktop device'
+			);
+			return;
+		}
 		// setup timeline
 		const vis = milestones('#timeline')
 			.mapping({
@@ -147,7 +154,7 @@
 
 <div class="flex flex-col">
 	<div
-		class="xkcd-script pointer-events-none fixed flex h-32 w-full flex-col items-start py-6 pl-[40%]"
+		class="xkcd-script pointer-events-none fixed z-50 flex h-32 w-full flex-col items-start bg-gradient-to-b from-white from-50% to-transparent py-6 lg:bg-transparent lg:bg-none lg:pl-[40%]"
 	>
 		<div class="p-4">
 			<h1 class="mb-2 text-4xl font-bold">Stuff I made</h1>
@@ -157,15 +164,17 @@
 
 	<div class="xkcd-script static mt-32 flex h-full w-full">
 		<!-- Left Section for Project List -->
-		<div class="-mt-16 mb-64 w-2/5 overflow-y-visible p-4" id="left">
+		<div class="mb-64 w-full overflow-y-visible p-4 lg:-mt-16 lg:w-2/5" id="left">
 			<!-- sort dropdown -->
-			<div class="-mt-8 mb-4 flex items-center justify-end gap-3 overflow-visible">
+			<div
+				class="fixed right-0 z-50 -mt-8 mb-4 flex items-center justify-end gap-3 overflow-visible lg:relative lg:right-auto lg:z-auto"
+			>
 				<label for="sort" class="text-sm text-foreground">Sort by:</label>
 				<select id="sort" class="bg-transparent text-sm text-foreground" bind:value={sortListBy}>
-					<option value="loc">Lines of Code</option>
 					<option value="stars">Stars</option>
-					<option value="title">Title</option>
 					<option value="recency">Recency</option>
+					<option value="title">Title</option>
+					<option value="loc">Lines of Code</option>
 				</select>
 			</div>
 			<ProjectList {projects} sortBy={sortListBy} {hoveredProject} />
@@ -173,16 +182,16 @@
 
 		<!-- Left section fade-out top -->
 		<div
-			class="pointer-events-none fixed top-0 h-48 w-2/5 bg-gradient-to-t from-transparent to-white"
+			class="pointer-events-none fixed top-16 h-48 w-full bg-gradient-to-t from-transparent to-white lg:top-0 lg:w-2/5"
 		/>
 
 		<!-- Left section fade-out bottom -->
 		<div
-			class="pointer-events-none fixed bottom-0 h-48 w-2/5 bg-gradient-to-b from-transparent to-white"
+			class="pointer-events-none fixed bottom-0 h-48 w-full bg-gradient-to-b from-transparent to-white lg:w-2/5"
 		/>
 
 		<!-- Right Section for Graph Plot -->
-		<div class="fixed right-0 flex h-[calc(100vh-10rem)] w-3/5 flex-col p-4" id="right">
+		<div class="fixed right-0 hidden h-[calc(100vh-10rem)] w-3/5 flex-col p-4 lg:flex" id="right">
 			<!-- Tab Bar using shadcn/ui -->
 			<Tabs value={selectedPlotIndex.toString()} onValueChange={handleTabSelect} class="w-full">
 				<button
