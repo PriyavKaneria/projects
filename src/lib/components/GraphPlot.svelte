@@ -1295,7 +1295,18 @@
 			.attr('transform', `translate(${width / 2},${height / 2})`);
 
 		// Color palette
-		const color = d3.scaleSequential(d3.interpolatePurples).domain([-5, data.length]);
+		// select random interpolate from interpolatePurples, interpolateGreens, interpolateReds, interpolateBlues, interpolateWarm, interpolateCool
+		const colorRandomInterpolator = [
+			d3.interpolatePurples,
+			d3.interpolateGreens,
+			d3.interpolateReds,
+			d3.interpolateBlues
+		];
+		const color = d3
+			.scaleSequential(
+				colorRandomInterpolator[Math.floor(Math.random() * colorRandomInterpolator.length)]
+			)
+			.domain([-5, data.length]);
 
 		// Size scale
 		const size = d3
@@ -1344,7 +1355,12 @@
 		};
 
 		// Initialize the circle: all located at the center of the svg area
-		const nodeGroup = svgElement.selectAll('g').data(data).join('g').attr('class', 'node-group');
+		const nodeGroup = svgElement
+			.selectAll('g')
+			.data(data)
+			.join('g')
+			.attr('class', 'node-group')
+			.style('user-select', 'none');
 
 		nodeGroup
 			.append('circle')

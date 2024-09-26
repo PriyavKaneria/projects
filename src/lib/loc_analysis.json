@@ -80,7 +80,7 @@
 			".heex": 908,
 			".txt": 5
 		},
-		"description": "Connect, Interact and Learn",
+		"description": "Connect, Interact and Learn - A location-based online web chat app that helps people socialize and make connections with people all around the world",
 		"stars": 1,
 		"topics": [],
 		"private": false,
@@ -108,7 +108,7 @@
 			".txt": 1,
 			".md": 43
 		},
-		"description": "A python project to finish the 1 to 50 Game within 2 secs \ud83d\ude0e using Tesseract OCR engine",
+		"description": "A python project to finish the 1 to 50 Game within 2 secs using Tesseract OCR engine",
 		"stars": 6,
 		"topics": ["tesseract-ocr-engine", "ocr", "game", "hack"],
 		"private": false,
@@ -166,7 +166,7 @@
 			".css": 382,
 			".js": 205
 		},
-		"description": "",
+		"description": "custom made CTF project. It has 4 stages with not so difficult challenges",
 		"stars": 2,
 		"topics": ["hacktoberfest", "hacktoberfest-accepted", "hacktoberfest2022"],
 		"private": false,
@@ -495,7 +495,7 @@
 		"language_distribution": {
 			".md": 83
 		},
-		"description": "",
+		"description": "Winning project of DevJam2021 - A realistic 3rd person open world rpg for Covid-19 awareness and fun",
 		"stars": 0,
 		"topics": [],
 		"private": false,
@@ -731,7 +731,7 @@
 			".txt": 22
 		},
 		"description": "An Android app with the only goal of being a secure, locked, no-third party, completely local open source password saving app",
-		"stars": 31,
+		"stars": 33,
 		"topics": [
 			"android",
 			"android-application",
@@ -936,7 +936,7 @@
 			".svelte": 14885,
 			".rs": 13925
 		},
-		"description": "Unnamed repository; edit this file 'description' to name the repository.",
+		"description": "AI Governance, Risk and Compliance startup. Now SuperAlign.ai",
 		"private": true,
 		"contributions": {
 			"total_commits": 498,
@@ -966,7 +966,7 @@
 			".tsx": 13247,
 			".css": 239
 		},
-		"description": "Unnamed repository; edit this file 'description' to name the repository.",
+		"description": "Workflow tool for quickly building and deploying ML models for real world applications",
 		"private": true,
 		"contributions": {
 			"total_commits": 76,
@@ -993,7 +993,7 @@
 			".txt": 22,
 			".json": 3
 		},
-		"description": "NCC Paper Generator",
+		"description": "tool to generate NCC Army, Navy and Airforce question papers all over india. copyright claimed and sold",
 		"stars": 0,
 		"topics": [],
 		"private": true,
@@ -1008,7 +1008,7 @@
 			"median_commit_size": 135
 		}
 	},
-	"Portfolio": {
+	"first-fancy-portfolio": {
 		"total_files": 39,
 		"total_lines": 4111,
 		"total_blanks": 292,
@@ -1024,7 +1024,7 @@
 			".js": 2226,
 			".css": 1761
 		},
-		"description": "My online Resume \ud83d\ude09",
+		"description": "My old online Resume. made in college 1st year",
 		"stars": 1,
 		"topics": [],
 		"private": true,
@@ -1177,7 +1177,7 @@
 			".tsx": 2844,
 			".css": 390
 		},
-		"description": "",
+		"description": "A collaborative paint application made with NextJS and Socket.io",
 		"stars": 4,
 		"topics": [],
 		"private": false,
@@ -1211,7 +1211,7 @@
 			".tsx": 15777,
 			".py": 229
 		},
-		"description": "",
+		"description": "Website for Annual test fest of college. A 2D top down rpg with the campus as the map and quizes, registration management and leaderboard ",
 		"stars": 2,
 		"topics": [],
 		"private": false,
@@ -1271,7 +1271,7 @@
 			".py": 145,
 			".json": 19
 		},
-		"description": "Unnamed repository; edit this file 'description' to name the repository.",
+		"description": "this was the backend for Gesto, a startup that classified sign language gestures. selected for Google Startup Bootcamp 2022 and top 30 startups at Nasscom Cisco thinqbator Cohort 5",
 		"private": true,
 		"contributions": {
 			"total_commits": 14,
