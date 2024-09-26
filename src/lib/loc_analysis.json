@@ -1,5 +1,6 @@
 {
 	"atman": {
+		"featuredLevel": 3,
 		"total_files": 16,
 		"total_lines": 1466,
 		"total_blanks": 219,
@@ -29,6 +30,7 @@
 		}
 	},
 	"AutoDJ": {
+		"featuredLevel": 2,
 		"total_files": 138,
 		"total_lines": 12158,
 		"total_blanks": 628,
@@ -64,6 +66,7 @@
 		}
 	},
 	"Rannect": {
+		"featuredLevel": 2,
 		"total_files": 77,
 		"total_lines": 8628,
 		"total_blanks": 1056,
@@ -214,6 +217,7 @@
 		}
 	},
 	"CodeStats": {
+		"featuredLevel": 1,
 		"total_files": 7,
 		"total_lines": 4395,
 		"total_blanks": 39,
@@ -485,6 +489,7 @@
 		}
 	},
 	"Dr.Vincent": {
+		"featuredLevel": 1,
 		"total_files": 1,
 		"total_lines": 83,
 		"total_blanks": 11,
@@ -600,6 +605,7 @@
 		}
 	},
 	"experiments-with-game-of-life": {
+		"featuredLevel": 3,
 		"total_files": 19,
 		"total_lines": 8746,
 		"total_blanks": 245,
@@ -661,6 +667,7 @@
 		}
 	},
 	"HITnROLL": {
+		"featuredLevel": 2,
 		"total_files": 2,
 		"total_lines": 167,
 		"total_blanks": 0,
@@ -717,6 +724,7 @@
 		}
 	},
 	"LocalLock": {
+		"featuredLevel": 3,
 		"total_files": 33,
 		"total_lines": 2212,
 		"total_blanks": 167,
@@ -813,6 +821,7 @@
 		}
 	},
 	"NeuralCalculus": {
+		"featuredLevel": 3,
 		"total_files": 49,
 		"total_lines": 1472,
 		"total_blanks": 337,
@@ -843,6 +852,7 @@
 		}
 	},
 	"BlogAnywhere": {
+		"featuredLevel": 1,
 		"total_files": 19,
 		"total_lines": 4865,
 		"total_blanks": 30,
@@ -911,6 +921,7 @@
 		}
 	},
 	"PureML": {
+		"featuredLevel": 2,
 		"total_files": 1358,
 		"total_lines": 111346,
 		"total_blanks": 11531,
@@ -1161,6 +1172,7 @@
 		}
 	},
 	"collabrush": {
+		"featuredLevel": 1,
 		"total_files": 37,
 		"total_lines": 7671,
 		"total_blanks": 795,
@@ -1193,6 +1205,7 @@
 		}
 	},
 	"Avishkar": {
+		"featuredLevel": 2,
 		"total_files": 134,
 		"total_lines": 44598,
 		"total_blanks": 1118,
@@ -1285,6 +1298,7 @@
 		}
 	},
 	"HopeChain": {
+		"featuredLevel": 1,
 		"total_files": 132,
 		"total_lines": 68229,
 		"total_blanks": 1895,

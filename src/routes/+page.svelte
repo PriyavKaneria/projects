@@ -16,7 +16,10 @@
 	$: selectedPlot = plotNames[selectedPlotIndex];
 
 	$: tabList = undefined as HTMLDivElement | undefined;
-	let sortListBy: 'loc' | 'stars' | 'title' | 'recency' = 'stars';
+
+	// randomly select a sort option by default
+	let sortListBy: 'loc' | 'stars' | 'title' | 'recency' | 'rank' =
+		Math.random() < 0.5 ? 'stars' : 'rank';
 
 	const handleTabSelect = (tab: string | undefined) => {
 		if (tab) selectedPlotIndex = parseInt(tab);
@@ -171,6 +174,7 @@
 			>
 				<label for="sort" class="text-sm text-foreground">Sort by:</label>
 				<select id="sort" class="bg-transparent text-sm text-foreground" bind:value={sortListBy}>
+					<option value="rank">Rank</option>
 					<option value="stars">Stars</option>
 					<option value="recency">Recency</option>
 					<option value="title">Title</option>

@@ -24,6 +24,7 @@ interface LocAnalysis {
 		last_commit_date: string | null;
 		median_commit_size: number;
 	};
+	featuredLevel?: number;
 }
 
 interface Repo {
@@ -43,6 +44,7 @@ export interface Project {
 	loc: number;
 	first_commit_date?: string | null;
 	private?: boolean;
+	featuredLevel?: number;
 }
 
 const locAnalysis = LocAnalysisJson as Record<string, LocAnalysis>;
@@ -57,7 +59,8 @@ export const projects: Project[] = Object.keys(locAnalysis).map((key) => {
 		topics,
 		total_lines_of_code,
 		contributions,
-		private: isPrivate
+		private: isPrivate,
+		featuredLevel
 	} = locAnalysis[key];
 	const repo = repos.find((r) => r.path.includes(key));
 	// get keys of language_distribution in descending sorted order
@@ -76,7 +79,8 @@ export const projects: Project[] = Object.keys(locAnalysis).map((key) => {
 		topics,
 		loc: total_lines_of_code,
 		first_commit_date: contributions?.first_commit_date,
-		private: isPrivate
+		private: isPrivate,
+		featuredLevel
 	};
 });
 
