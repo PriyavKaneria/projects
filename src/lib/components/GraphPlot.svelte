@@ -998,7 +998,7 @@
 				tooltip
 					.style('opacity', 1)
 					.html(
-						`${plotMetadata[selectedPlot].xLabel}: ${d.x}<br>${plotMetadata[selectedPlot].yLabel}: ${d.y}`
+						`${plotMetadata[selectedPlot].xLabel}: ${Math.round(d.x)}<br>${plotMetadata[selectedPlot].yLabel}: ${d.y}`
 					)
 					.style('top', `${event.pageY - offsetTop - 10}px`)
 					.style('left', `${event.pageX - offsetLeft + 10}px`);

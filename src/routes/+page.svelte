@@ -127,10 +127,10 @@
 	const handleWheel = (event: WheelEvent) => {
 		if (selectedPlot !== 'Timeline') return;
 		event.preventDefault();
-		if (event.deltaY < 0 && zoomLevel < 10) {
-			zoomBind[0] += 1;
-		} else if (event.deltaY > 0 && zoomLevel > 0) {
+		if (event.deltaY < 0 && zoomLevel > 0) {
 			zoomBind[0] -= 1;
+		} else if (event.deltaY > 0 && zoomLevel < 10) {
+			zoomBind[0] += 1;
 		}
 		mouseXPosition = event.clientX;
 		updateTimeline();
@@ -163,6 +163,23 @@
 			<h1 class="mb-2 text-4xl font-bold">Stuff I made</h1>
 			<p class="text-sm italic">(or contributed to)</p>
 		</div>
+		<div class="fixed right-0 top-0 flex items-center justify-center gap-4 p-4">
+			regular updates on
+			<a
+				href="https://x.com/_diginova"
+				target="_blank"
+				class="pointer-events-auto cursor-pointer text-foreground"
+			>
+				<img src="/x.png" alt="Twitter" class="h-6 w-6" />
+			</a>
+			<a
+				href="https://www.linkedin.com/in/priyavkaneria/"
+				target="_blank"
+				class="pointer-events-auto cursor-pointer text-foreground"
+			>
+				<img src="/in.png" alt="LinkedIn" class="h-4 w-4" />
+			</a>
+		</div>
 	</div>
 
 	<div class="xkcd-script static mt-32 flex h-full w-full">
@@ -170,7 +187,7 @@
 		<div class="mb-64 w-full overflow-y-visible p-4 lg:-mt-16 lg:w-2/5" id="left">
 			<!-- sort dropdown -->
 			<div
-				class="fixed right-0 z-50 -mt-8 mb-4 flex items-center justify-end gap-3 overflow-visible lg:relative lg:right-auto lg:z-auto"
+				class="fixed right-6 z-50 -mt-8 mb-4 flex items-center justify-end gap-3 overflow-visible lg:relative lg:right-0 lg:right-auto lg:z-auto"
 			>
 				<label for="sort" class="text-sm text-foreground">Sort by:</label>
 				<select id="sort" class="bg-transparent text-sm text-foreground" bind:value={sortListBy}>

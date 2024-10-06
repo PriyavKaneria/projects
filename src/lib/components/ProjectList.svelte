@@ -68,7 +68,7 @@
 				<CardTitle class="text-lg font-medium">
 					<span class="flex items-center gap-1">
 						<span
-							class="items-top flex h-6 gap-1 overflow-visible rounded-md px-2 py-1 text-sm text-muted-foreground"
+							class="items-top flex h-6 gap-1 overflow-visible rounded-md px-2 py-1 text-sm text-muted-foreground text-nowrap"
 						>
 							{`< `}{ranks[project.featuredLevel || 0]}{` >`}
 							{#if !project.featuredLevel}

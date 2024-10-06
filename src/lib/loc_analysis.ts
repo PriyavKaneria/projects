@@ -216,7 +216,7 @@ const plotGenerators: PlotGenerator[] = [
 		],
 		xLabel: 'Total Files',
 		yLabel: 'Number of Languages',
-		IQRFactor: 25
+		IQRFactor: 20
 	},
 	{
 		key: 'Commit Time Warp',
