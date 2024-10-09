@@ -605,14 +605,14 @@
 
 		legend.call(legendAxis).style('font-family', 'xkcd-script').style('font-size', '0.8rem');
 
-		legend
-			.append('text')
-			.attr('fill', 'black')
-			.attr('x', legendWidth / 2)
-			.attr('y', -10)
-			.attr('text-anchor', 'middle')
-			.style('font-size', '1rem')
-			.text('Value');
+		// legend
+		// 	.append('text')
+		// 	.attr('fill', 'black')
+		// 	.attr('x', legendWidth / 2)
+		// 	.attr('y', -10)
+		// 	.attr('text-anchor', 'middle')
+		// 	.style('font-size', '1rem')
+		// 	.text('Value');
 	}
 
 	function drawLorentzPlot() {
