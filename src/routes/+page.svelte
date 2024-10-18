@@ -206,6 +206,20 @@
 			class="pointer-events-none fixed top-16 h-48 w-full bg-gradient-to-t from-transparent to-white lg:top-0 lg:w-2/5"
 		/>
 
+		<!-- NeuralCalculus link -->
+		<div class="fixed left-0 top-0 flex items-center justify-start p-2">
+			<a
+				href="https://priyavkaneria.com/#dock"
+				class="itesm-center pointer-events-auto flex cursor-pointer justify-center gap-2 text-foreground"
+			>
+				<img src="/DigiLogo-v3-square.png" alt="NeuralCalculus" class="h-12 w-12" />
+				<div class="flex flex-col justify-center">
+					<span class="self-start text-xl font-bold">NeuralCalculus</span>
+					<span class="text-[12px] tracking-tight">expect until you can predict</span>
+				</div>
+			</a>
+		</div>
+
 		<!-- Left section fade-out bottom -->
 		<div
 			class="pointer-events-none fixed bottom-0 h-48 w-full bg-gradient-to-b from-transparent to-white lg:w-2/5"
